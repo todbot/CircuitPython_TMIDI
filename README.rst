@@ -5,19 +5,12 @@ Introduction
 .. image:: https://readthedocs.org/projects/circuitpython-tmidi/badge/?version=latest
     :target: https://circuitpython-tmidi.readthedocs.io/
     :alt: Documentation Status
-
-
-
 .. image:: https://img.shields.io/discord/327254708534116352.svg
     :target: https://adafru.it/discord
     :alt: Discord
-
-
 .. image:: https://github.com/todbot/CircuitPython_TMIDI/workflows/Build%20CI/badge.svg
     :target: https://github.com/todbot/CircuitPython_TMIDI/actions
     :alt: Build Status
-
-
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
     :alt: Code Style: Black
@@ -27,7 +20,7 @@ MIDI library for CircuitPython
 
 Dependencies
 =============
-This driver depends on:
+This library depends on:
 
 * `Adafruit CircuitPython <https://github.com/adafruit/circuitpython>`_
 
@@ -100,7 +93,7 @@ Usage Example
     midi_usb = tmidi.MIDI(midi_in=usb_midi.ports[0], midi_out=usb_midi.ports[1])
 
     def send_midi_panic(channel=1):
-        msg = Message(NOTE_OFF, channel-1)  # channels are 0-indexed
+        msg = tmidi.Message(tmidi.NOTE_OFF, channel-1)  # channels are 0-indexed
         for notenum in range(128):
             msg.note = notenum
             msg.velocity = 0
