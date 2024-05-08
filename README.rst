@@ -42,7 +42,6 @@ Installing from PyPI
 .. note:: This library is not available on PyPI yet. Install documentation is included
    as a standard element. Stay tuned for PyPI availability!
 
-.. todo:: Remove the above note if PyPI version is/will be available at time of release.
 
 On supported GNU/Linux systems like the Raspberry Pi, you can install the driver locally `from
 PyPI <https://pypi.org/project/circuitpython-tmidi/>`_.
@@ -93,8 +92,24 @@ Or the following command to update an existing version:
 Usage Example
 =============
 
-.. todo:: Add a quick, simple example. It and other examples should live in the
-examples folder and be included in docs/examples.rst.
+.. code-block:: python
+
+    import usb_midi
+    import tmidi
+
+    midi_usb = tmidi.MIDI(midi_in=usb_midi.ports[0], midi_out=usb_midi.ports[1])
+
+    def send_midi_panic(channel=1):
+        msg = Message(NOTE_OFF, channel-1)  # channels are 0-indexed
+        for notenum in range(128):
+            msg.note = notenum
+            msg.velocity = 0
+            midi_usb.send(msg)
+            time.sleep(0.01)
+    }
+
+    send_midi_panic()
+
 
 Documentation
 =============

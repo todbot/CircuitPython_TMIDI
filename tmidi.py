@@ -100,8 +100,10 @@ _LEN_1_MESSAGES = set([PROGRAM_CHANGE, CHANNEL_PRESSURE, SONG_SELECT, BUS_SELECT
 _LEN_2_MESSAGES = set([NOTE_OFF, NOTE_ON, AFTERTOUCH, CC, PITCH_BEND, SONG_POSITION])
 
 
+# pylint: disable=chained-comparison
 def _is_channel_message(status_byte):
-    return status_byte >= NOTE_OFF and status_byte < SYSEX  # pylint: disable=chained-comparison
+    return status_byte >= NOTE_OFF and status_byte < SYSEX
+
 
 def _read_n_bytes(port, buf, dest, num_bytes):
     while num_bytes:
@@ -109,26 +111,30 @@ def _read_n_bytes(port, buf, dest, num_bytes):
             dest.append(buf[0])
             num_bytes -= 1
 
+
 def _read_byte_works(port):
     while True:
         buf = port.read(1)
         if buf:
             return buf[0]
-        print("boop",buf)
+        print("boop", buf)
+
 
 def _read_byte(port):
     while not (buf := port.read(1)):
         pass
     return buf[0]
 
+
 class Message:
     """
-    MIDI Message data holder 
+    MIDI Message data holder
     """
+
     def __init__(self, mtype=SYSTEM_RESET, channel=None, data0=0, data1=0):
         """
         Create a MIDI Message.
-        
+
         # create Note On middle-C message on ch1 (0-indexed)
         m = Message(NOTE_ON, 0, 60, 127)
         # create CC 74 with val 63 on ch 4
@@ -155,7 +161,7 @@ class Message:
         return self.data0
 
     @note.setter
-    def note(self,notenum):
+    def note(self, notenum):
         self.data0 = notenum
 
     @property
@@ -164,7 +170,7 @@ class Message:
         return self.data1
 
     @velocity.setter
-    def velocity(self,vel):
+    def velocity(self, vel):
         self.data1 = vel
 
     @property
@@ -173,16 +179,16 @@ class Message:
         return (self.data1 << 7 | self.data0) - 8192
 
     @pitch_bend.setter
-    def pitch_bend(self,pbval):
-        self.data0 = pbval & 0x7f
+    def pitch_bend(self, pbval):
+        self.data0 = pbval & 0x7F
         self.data1 = pbval >> 7
-
 
 
 class MIDI:
     """
     MIDI Parser and sender
     """
+
     def __init__(self, midi_in=None, midi_out=None, enable_running_status=False):
         self._in_port = midi_in
         self._out_port = midi_out
@@ -195,9 +201,8 @@ class MIDI:
 
     @property
     def error_count(self):
-        """Number of errors encountered when parsing received messages """
+        """Number of errors encountered when parsing received messages"""
         return self._error_count
-
 
     def receive(self):
         """Read message from MIDI port, parse that data and
@@ -249,7 +254,6 @@ class MIDI:
         elif message.type in _LEN_1_MESSAGES:
             message.data0 = _read_byte(self._in_port)
 
-
         # Check the data bytes for corruption. status bytes in data
         # means we're out of sync, so discard.
         # TODO: Figure out a better way to detect and deal with this upstream.
@@ -260,7 +264,7 @@ class MIDI:
 
         return message
 
-
+    # pylint: disable=unnecessary-dunder-call
     def send(self, msg, channel=None):
         """Send a MIDI message.
 
@@ -273,14 +277,12 @@ class MIDI:
             if channel:
                 msg.channel = channel
             # bytes(object) does not work in uPy
-            data = msg.__bytes__()  # pylint: disable=unnecessary-dunder-call
+            data = msg.__bytes__()
         else:
             data = bytearray()
             for each_msg in msg:
                 if channel:
                     each_msg.channel = channel
-                data.extend(
-                    each_msg.__bytes__()  # pylint: disable=unnecessary-dunder-call
-                )
+                data.extend(each_msg.__bytes__())
 
         self._out_port.write(data, len(data))
