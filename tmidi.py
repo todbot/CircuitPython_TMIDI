@@ -209,13 +209,13 @@ class Message:
     # pylint: disable=consider-using-f-string
     def __str__(self):
         mtype = self.type
-        type_str = _MSG_TYPE_NAMES[mtype]
+        type_str = "Message(" + _MSG_TYPE_NAMES[mtype]
         if mtype == PITCH_BEND:
-            return "%s %d" % (type_str, self.pitch_bend)
+            return "%s %d)" % (type_str, self.pitch_bend)
         if mtype in _LEN_2_MESSAGES:
-            return "%s %d %d" % (type_str, self.data0, self.data1)
+            return "%s %d %d)" % (type_str, self.data0, self.data1)
         if mtype in _LEN_1_MESSAGES:
-            return "%s %d" % (type_str, self.data0)
+            return "%s %d)" % (type_str, self.data0)
         return type_str
 
     @property
