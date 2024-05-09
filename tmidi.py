@@ -160,7 +160,6 @@ def _read_byte_works(port):
         buf = port.read(1)
         if buf:
             return buf[0]
-        print("boop", buf)
 
 
 def _read_byte(port):
@@ -210,13 +209,14 @@ class Message:
     def __str__(self):
         mtype = self.type
         type_str = "Message(" + _MSG_TYPE_NAMES[mtype]
+        ch_str = "ch:%d" % self.channel if _is_channel_message(mtype) else "-"
         if mtype == PITCH_BEND:
-            return "%s %d)" % (type_str, self.pitch_bend)
+            return "%s %s %d)" % (type_str, ch_str, self.pitch_bend)
         if mtype in _LEN_2_MESSAGES:
-            return "%s %d %d)" % (type_str, self.data0, self.data1)
+            return "%s %s %d %d)" % (type_str, ch_str, self.data0, self.data1)
         if mtype in _LEN_1_MESSAGES:
-            return "%s %d)" % (type_str, self.data0)
-        return type_str
+            return "%s %s %d)" % (type_str, ch_str, self.data0)
+        return "%s)" % type_str
 
     @property
     def note(self):
@@ -304,7 +304,7 @@ class MIDI:
                 self._error_count += 1
                 return None
 
-        message = Message()
+        message = Message(status_byte)
 
         # Is this a channel message, if so, let's figure out the right
         # message type and set the message's channel property.
@@ -314,8 +314,6 @@ class MIDI:
             # Mask off the channel nibble.
             message.type = status_byte & 0xF0
             message.channel = status_byte & 0x0F
-        else:
-            message.type = status_byte
 
         # Read the appropriate number of bytes for each message type.
         if message.type in _LEN_2_MESSAGES:
