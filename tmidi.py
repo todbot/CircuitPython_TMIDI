@@ -62,25 +62,45 @@ __repo__ = "https://github.com/todbot/CircuitPython_TMIDI.git"
 
 # Message type constants.
 NOTE_OFF = 0x80
+"""Note Off"""
 NOTE_ON = 0x90
+"""Note On"""
 AFTERTOUCH = 0xA0
+"""Aftertouch"""
 CONTROLLER_CHANGE = CC = 0xB0
+"""Controller Change"""
 PROGRAM_CHANGE = 0xC0
+"""Program Change"""
 CHANNEL_PRESSURE = 0xD0
+"""Channel Pressure"""
 PITCH_BEND = 0xE0
+"""Pitch Bend"""
 SYSTEM_EXCLUSIVE = SYSEX = 0xF0
+"""Sysex"""
 SONG_POSITION = 0xF2
+"""Song Position"""
 SONG_SELECT = 0xF3
+"""Song Select"""
 BUS_SELECT = 0xF5
+"""BUS Select"""
 TUNE_REQUEST = 0xF6
+"""Tune Request"""
 SYSEX_END = 0xF7
+"""Sysex End"""
 CLOCK = 0xF8
+"""Clock"""
 TICK = 0xF9
+"""Tick"""
 START = 0xFA
+"""Start"""
 CONTINUE = 0xFB
+"""Continue"""
 STOP = 0xFC
+"""Stop"""
 ACTIVE_SENSING = 0xFE
+"""Active Sensing"""
 SYSTEM_RESET = 0xFF
+"""System Reset"""
 
 _LEN_0_MESSAGES = set(
     [
@@ -98,6 +118,29 @@ _LEN_0_MESSAGES = set(
 )
 _LEN_1_MESSAGES = set([PROGRAM_CHANGE, CHANNEL_PRESSURE, SONG_SELECT, BUS_SELECT])
 _LEN_2_MESSAGES = set([NOTE_OFF, NOTE_ON, AFTERTOUCH, CC, PITCH_BEND, SONG_POSITION])
+
+_MSG_TYPE_NAMES = {
+    NOTE_OFF: "NoteOff",
+    NOTE_ON: "NoteOn",
+    AFTERTOUCH: "Aftertouch",
+    CC: "CC",
+    PROGRAM_CHANGE: "ProgramChange",
+    CHANNEL_PRESSURE: "ChannelPressure",
+    PITCH_BEND: "PitchBend",
+    SYSEX: "Sysex",
+    SONG_POSITION: "SongPosition",
+    SONG_SELECT: "SongSelect",
+    BUS_SELECT: "BusSelect",
+    TUNE_REQUEST: "TuneRequest",
+    SYSEX_END: "SysexEnd",
+    CLOCK: "Clock",
+    TICK: "Tick",
+    START: "Start",
+    CONTINUE: "Continue",
+    STOP: "Stop",
+    ACTIVE_SENSING: "ActiveSensing",
+    SYSTEM_RESET: "SystemReset",
+}
 
 
 # pylint: disable=chained-comparison
@@ -128,17 +171,25 @@ def _read_byte(port):
 
 class Message:
     """
-    MIDI Message data holder
+    MIDI Message.
+
+    :param mtype: The type of message, e.g. tmidi.NOTE_ON.
+    :param channel: The MIDI channel for this message, if applicable (0-15)
+    :param data0: The first data byte for this message,
+        e.g. the note number as an ``int`` (0-127) for NOTE_ON messages.
+    :param data1: The second data byte for this message,
+        e.g. the velocity (0-127) for NOTE_ON messages.
     """
 
     def __init__(self, mtype=SYSTEM_RESET, channel=None, data0=0, data1=0):
         """
         Create a MIDI Message.
 
-        # create Note On middle-C message on ch1 (0-indexed)
-        m = Message(NOTE_ON, 0, 60, 127)
-        # create CC 74 with val 63 on ch 4
-        m = Message(CC, 3, 74, 63)
+        Example::
+            # create Note On middle-C message on ch1 (0-indexed)
+            m = Message(tmidi.NOTE_ON, 0, 60, 127)
+            # create CC 74 with val 63 on ch 4
+            m = Message(tmidi.CC, 3, 74, 63)
         """
         self.type = mtype
         self.channel = channel
@@ -154,6 +205,18 @@ class Message:
         if status_byte in _LEN_1_MESSAGES:
             return bytes([status_byte, self.data0])
         return bytes([status_byte])
+
+    # pylint: disable=consider-using-f-string
+    def __str__(self):
+        mtype = self.type
+        type_str = _MSG_TYPE_NAMES[mtype]
+        if mtype == PITCH_BEND:
+            return "%s %d" % (type_str, self.pitch_bend)
+        if mtype in _LEN_2_MESSAGES:
+            return "%s %d %d" % (type_str, self.data0, self.data1)
+        if mtype in _LEN_1_MESSAGES:
+            return "%s %d" % (type_str, self.data0)
+        return type_str
 
     @property
     def note(self):
@@ -187,6 +250,13 @@ class Message:
 class MIDI:
     """
     MIDI Parser and sender
+    ``midi_in`` or ``midi_out`` *must* be set or both together.
+
+    :param midi_in: an object which implements ``read(length)``,
+        set to ``usb_midi.ports[0]`` for USB MIDI, default None.
+    :param midi_out: an object which implements ``write(buffer, length)``,
+        set to ``usb_midi.ports[1]`` for USB MIDI, default None.
+    :param bool enable_running_status: Allow running status messages to work, default False.
     """
 
     def __init__(self, midi_in=None, midi_out=None, enable_running_status=False):

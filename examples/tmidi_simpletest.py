@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+# This example outputs MIDI notes over USB MIDI
+
 import time
 import random
 import usb_midi
@@ -17,9 +19,11 @@ while True:
     velocity = 127
 
     msg_on = tmidi.Message(tmidi.NOTE_ON, midi_channel - 1, notenum, velocity)
+    print("sending note on  msg:", msg_on)
     midi_usb.send(msg_on)
     time.sleep(0.1)
 
     msg_off = tmidi.Message(tmidi.NOTE_OFF, midi_channel - 1, notenum, 0)
+    print("sending note off msg:", msg_off)
     midi_usb.send(msg_off)
     time.sleep(0.2)
