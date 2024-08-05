@@ -148,24 +148,24 @@ def _is_channel_message(status_byte):
     return status_byte >= NOTE_OFF and status_byte < SYSEX
 
 
-def _read_n_bytes(port, buf, dest, num_bytes):
-    while num_bytes:
-        if port.readinto(buf):
-            dest.append(buf[0])
-            num_bytes -= 1
-
-
-def _read_byte_works(port):
-    while True:
-        buf = port.read(1)
-        if buf:
-            return buf[0]
-
-
 def _read_byte(port):
     while not (buf := port.read(1)):
         pass
     return buf[0]
+
+
+# def _read_n_bytes(port, buf, dest, num_bytes):
+#     while num_bytes:
+#         if port.readinto(buf):
+#             dest.append(buf[0])
+#             num_bytes -= 1
+
+
+# def _read_byte_works(port):
+#     while True:
+#         buf = port.read(1)
+#         if buf:
+#             return buf[0]
 
 
 class Message:
@@ -204,6 +204,9 @@ class Message:
         if status_byte in _LEN_1_MESSAGES:
             return bytes([status_byte, self.data0])
         return bytes([status_byte])
+
+    def __repr__(self):
+        return self.__str__()
 
     # pylint: disable=consider-using-f-string
     def __str__(self):
