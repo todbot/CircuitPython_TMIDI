@@ -189,11 +189,15 @@ class Message:
             m = Message(tmidi.NOTE_ON, 0, 60, 127)
             # create CC 74 with val 63 on ch 4
             m = Message(tmidi.CC, 3, 74, 63)
+            # create a pitch bend full up on ch 1
+            m = Message(tmidi.PITCH_BEND, 0, 8191)
         """
         self.type = mtype
         self.channel = channel
         self.data0 = data0
         self.data1 = data1
+        if mtype == PITCH_BEND and data1 == 0:
+            self.pitch_bend = data0
 
     def __bytes__(self):
         status_byte = self.type
@@ -246,6 +250,7 @@ class Message:
 
     @pitch_bend.setter
     def pitch_bend(self, pbval):
+        pbval += 8192
         self.data0 = pbval & 0x7F
         self.data1 = pbval >> 7
 
