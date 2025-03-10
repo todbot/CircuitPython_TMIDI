@@ -35,7 +35,6 @@ Implementation Notes
 __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/todbot/CircuitPython_TMIDI.git"
 
-
 # Portions of this library come from Winterbloom_SmolMIDI:
 #
 # The MIT License (MIT)
@@ -60,46 +59,48 @@ __repo__ = "https://github.com/todbot/CircuitPython_TMIDI.git"
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from micropython import const
+
 # Message type constants.
-NOTE_OFF = 0x80
+NOTE_OFF = const(0x80)
 """Note Off"""
-NOTE_ON = 0x90
+NOTE_ON = const(0x90)
 """Note On"""
-AFTERTOUCH = 0xA0
+AFTERTOUCH = const(0xA0)
 """Aftertouch"""
-CONTROLLER_CHANGE = CC = 0xB0
+CONTROLLER_CHANGE = CC = const(0xB0)
 """Controller Change"""
-PROGRAM_CHANGE = 0xC0
+PROGRAM_CHANGE = const(0xC0)
 """Program Change"""
-CHANNEL_PRESSURE = 0xD0
+CHANNEL_PRESSURE = const(0xD0)
 """Channel Pressure"""
-PITCH_BEND = 0xE0
+PITCH_BEND = const(0xE0)
 """Pitch Bend"""
-SYSTEM_EXCLUSIVE = SYSEX = 0xF0
+SYSTEM_EXCLUSIVE = SYSEX = const(0xF0)
 """Sysex"""
-SONG_POSITION = 0xF2
+SONG_POSITION = const(0xF2)
 """Song Position"""
-SONG_SELECT = 0xF3
+SONG_SELECT = const(0xF3)
 """Song Select"""
-BUS_SELECT = 0xF5
+BUS_SELECT = const(0xF5)
 """BUS Select"""
-TUNE_REQUEST = 0xF6
+TUNE_REQUEST = const(0xF6)
 """Tune Request"""
-SYSEX_END = 0xF7
+SYSEX_END = const(0xF7)
 """Sysex End"""
-CLOCK = 0xF8
+CLOCK = const(0xF8)
 """Clock"""
-TICK = 0xF9
+TICK = const(0xF9)
 """Tick"""
-START = 0xFA
+START = const(0xFA)
 """Start"""
-CONTINUE = 0xFB
+CONTINUE = const(0xFB)
 """Continue"""
-STOP = 0xFC
+STOP = const(0xFC)
 """Stop"""
-ACTIVE_SENSING = 0xFE
+ACTIVE_SENSING = const(0xFE)
 """Active Sensing"""
-SYSTEM_RESET = 0xFF
+SYSTEM_RESET = const(0xFF)
 """System Reset"""
 
 _LEN_0_MESSAGES = set(
