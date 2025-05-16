@@ -2,7 +2,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024 Tod Kurt
 # SPDX-License-Identifier: MIT
 
-import pytest  # pylint: disable=unused-import
 
 import tmidi
 
