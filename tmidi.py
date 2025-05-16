@@ -216,7 +216,7 @@ class Message:
     # pylint: disable=consider-using-f-string
     def __str__(self):
         mtype = self.type
-        type_str = "Message(" + _MSG_TYPE_NAMES[mtype]
+        type_str = "Message(" + _MSG_TYPE_NAMES.get(mtype, "Unknown")
         ch_str = "ch:%d" % self.channel if _is_channel_message(mtype) else "-"
         if mtype == PITCH_BEND:
             return "%s %s %d)" % (type_str, ch_str, self.pitch_bend)
