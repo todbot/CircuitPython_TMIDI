@@ -32,7 +32,7 @@ class PortStub:
 
         return bytes_read
 
-    def write(self, buf):
+    def write(self, buf, n):
         pass
 
 

@@ -174,14 +174,14 @@ class Message:
     MIDI Message.
 
     :param mtype: The type of message, e.g. tmidi.NOTE_ON.
-    :param channel: The MIDI channel for this message, if applicable (0-15)
     :param data0: The first data byte for this message,
         e.g. the note number as an ``int`` (0-127) for NOTE_ON messages.
     :param data1: The second data byte for this message,
         e.g. the velocity (0-127) for NOTE_ON messages.
+    :param channel: The MIDI channel for this message, if applicable (0-15)
     """
 
-    def __init__(self, mtype=SYSTEM_RESET, channel=None, data0=0, data1=0):
+    def __init__(self, mtype=SYSTEM_RESET, data0=0, data1=0, channel=0):
         """
         Create a MIDI Message.
 
@@ -204,9 +204,9 @@ class Message:
         status_byte = self.type
         if _is_channel_message(status_byte):
             status_byte |= self.channel
-        if status_byte in _LEN_2_MESSAGES:
+        if self.type in _LEN_2_MESSAGES:
             return bytes([status_byte, self.data0, self.data1])
-        if status_byte in _LEN_1_MESSAGES:
+        elif self.type in _LEN_1_MESSAGES:
             return bytes([status_byte, self.data0])
         return bytes([status_byte])
 

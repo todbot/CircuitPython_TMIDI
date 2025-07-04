@@ -108,6 +108,12 @@ API documentation for this library can be found on `Read the Docs <https://circu
 For information on building library documentation, please check out
 `this guide <https://learn.adafruit.com/creating-and-sharing-a-circuitpython-library/sharing-our-docs-on-readthedocs#sphinx-5-1>`_.
 
+Testing
+=======
+
+Install `pytest` with `pip3 install pytest --upgrade` and run `pytest -v`
+
+
 Contributing
 ============
 
