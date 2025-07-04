@@ -90,7 +90,7 @@ Usage Example
     midi_usb = tmidi.MIDI(midi_in=usb_midi.ports[0], midi_out=usb_midi.ports[1])
 
     def send_midi_panic(midi_channel=1):
-        ch = channel-1
+        ch = midi_channel-1
         msg = tmidi.Message(tmidi.NOTE_OFF, channel=ch)  # channels are 0-indexed
         for notenum in range(128):
             msg.note = notenum
