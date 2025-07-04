@@ -144,7 +144,6 @@ _MSG_TYPE_NAMES = {
 }
 
 
-# pylint: disable=chained-comparison
 def _is_channel_message(status_byte):
     return status_byte >= NOTE_OFF and status_byte < SYSEX
 
@@ -202,7 +201,6 @@ class Message:
               print("note off:", msg.note, msg.velocity)
             elif msg.type == tmidi.PROGRAM_CHANGE:
               print("program change:", msg.value)
-
     """
 
     def __init__(self, mtype=SYSTEM_RESET, data0=0, data1=0, channel=0):
@@ -226,7 +224,6 @@ class Message:
     def __repr__(self):
         return self.__str__()
 
-    # pylint: disable=consider-using-f-string
     def __str__(self):
         mtype = self.type
         type_str = "Message(" + _MSG_TYPE_NAMES.get(mtype, "Unknown")
@@ -403,7 +400,6 @@ class MIDI:
 
         return message
 
-    # pylint: disable=unnecessary-dunder-call
     def send(self, msg, channel=None):
         """Send a MIDI message.
 
