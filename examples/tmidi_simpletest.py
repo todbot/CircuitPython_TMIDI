@@ -18,12 +18,12 @@ while True:
     notenum = random.randint(36, 72)
     velocity = 127
 
-    msg_on = tmidi.Message(tmidi.NOTE_ON, midi_channel - 1, notenum, velocity)
+    msg_on = tmidi.Message(tmidi.NOTE_ON, notenum, velocity, channel=midi_channel - 1)
     print("sending note on  msg:", msg_on)
     midi_usb.send(msg_on)
     time.sleep(0.1)
 
-    msg_off = tmidi.Message(tmidi.NOTE_OFF, midi_channel - 1, notenum, 0)
+    msg_off = tmidi.Message(tmidi.NOTE_OFF, notenum, 0, channel=midi_channel - 1)
     print("sending note off msg:", msg_off)
     midi_usb.send(msg_off)
     time.sleep(0.2)

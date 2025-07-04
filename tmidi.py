@@ -179,20 +179,33 @@ class Message:
     :param data1: The second data byte for this message,
         e.g. the velocity (0-127) for NOTE_ON messages.
     :param channel: The MIDI channel for this message, if applicable (0-15)
+
+    Example of creating Messages:
+
+    .. code-block:: python
+
+        # create Note On middle-C message on ch 1 (0-indexed)
+        m = Message(tmidi.NOTE_ON, 60, 127, channel=0)
+        # create CC 74 with val 63 on ch 4
+        m = Message(tmidi.CC, 74, 63, channel=4-1)
+        # create a pitch bend full up on ch 1
+        m = Message(tmidi.PITCH_BEND, 8191)
+
+    Example of creating accessing Message attributes:
+
+    .. code-block:: python
+
+        if msg := midi.receive():
+            if msg.type == tmidi.NOTE_ON:
+              print("note on:", msg.note, msg.velocity)
+            elif msg.type == tmidi.NOTE_OFF:
+              print("note off:", msg.note, msg.velocity)
+            elif msg.type == tmidi.PROGRAM_CHANGE:
+              print("program change:", msg.value)
+
     """
 
     def __init__(self, mtype=SYSTEM_RESET, data0=0, data1=0, channel=0):
-        """
-        Create a MIDI Message.
-
-        Example::
-            # create Note On middle-C message on ch1 (0-indexed)
-            m = Message(tmidi.NOTE_ON, 0, 60, 127)
-            # create CC 74 with val 63 on ch 4
-            m = Message(tmidi.CC, 3, 74, 63)
-            # create a pitch bend full up on ch 1
-            m = Message(tmidi.PITCH_BEND, 0, 8191)
-        """
         self.type = mtype
         self.channel = channel
         self.data0 = data0
@@ -246,7 +259,7 @@ class Message:
 
     @property
     def pitch_bend(self):
-        """Pitch bend value of message (only for PITCH_BEND msgs)"""
+        """Pitch bend value of message (only valid for PITCH_BEND msgs)"""
         return (self.data1 << 7 | self.data0) - 8192
 
     @pitch_bend.setter
@@ -255,10 +268,19 @@ class Message:
         self.data0 = pbval & 0x7F
         self.data1 = pbval >> 7
 
+    @property
+    def value(self):
+        """Message value, only valid for len1 messages (Program Change, etc)"""
+        return self.data0
+
+    @value.setter
+    def value(self, val):
+        self.data0 = val
+
 
 class MIDI:
     """
-    MIDI Parser and sender
+    MIDI Parser, receiver and sender
     ``midi_in`` or ``midi_out`` *must* be set or both together.
 
     :param midi_in: an object which implements ``read(length)``,
@@ -266,6 +288,46 @@ class MIDI:
     :param midi_out: an object which implements ``write(buffer, length)``,
         set to ``usb_midi.ports[1]`` for USB MIDI, default None.
     :param bool enable_running_status: Allow running status messages to work, default False.
+
+    Example of sending MIDI over USB:
+
+    .. code-block:: python
+
+        import usb_midi
+        import tmidi
+        midi_usb = tmidi.MIDI(midi_out=usb_midi.ports[1])
+        msg_on = tmidi.Message(tmidi.NOTE_ON, notenum, velocity)
+        midi_usb.send(msg_on)
+
+    Example of sending MIDI over UART (TRS or 5-pin):
+
+    .. code-block:: python
+
+        import board
+        import busio
+        import tmidi
+        uart = busio.UART(tx=board.TX, rx=board.RX, timeout=0.001)
+        midi_uart = tmidi.MIDI(midi_out=uart)
+        msg_on = tmidi.Message(tmidi.NOTE_ON, notenum, velocity)
+        midi_uart.send(msg_on)
+
+    Example of receiving MIDI:
+
+    .. code-block:: python
+
+        import board
+        import busio
+        import usb_midi
+        import tmidi
+        uart = busio.UART(tx=board.TX, rx=board.RX, timeout=0.001)
+        midi_uart = tmidi.MIDI(midi_in=uart, midi_out=uart)
+        midi_usb = tmidi.MIDI(midi_in=usb_midi.ports[0], midi_out=usb_midi.ports[1])
+
+        while True:
+            if msg := midi_usb.receive():
+                print("usb midi:", msg)
+            if msg := midi_uart.receive():
+                print("uart midi:", msg)
     """
 
     def __init__(self, midi_in=None, midi_out=None, enable_running_status=False):

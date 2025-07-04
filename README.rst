@@ -89,8 +89,9 @@ Usage Example
 
     midi_usb = tmidi.MIDI(midi_in=usb_midi.ports[0], midi_out=usb_midi.ports[1])
 
-    def send_midi_panic(channel=1):
-        msg = tmidi.Message(tmidi.NOTE_OFF, channel-1)  # channels are 0-indexed
+    def send_midi_panic(midi_channel=1):
+        ch = channel-1
+        msg = tmidi.Message(tmidi.NOTE_OFF, channel=ch)  # channels are 0-indexed
         for notenum in range(128):
             msg.note = notenum
             msg.velocity = 0
@@ -112,7 +113,7 @@ Testing
 =======
 
 Install ``pytest`` with ``pip3 install pytest --upgrade`` and run ``pytest -v``
-
+To build docs:
 
 Contributing
 ============
