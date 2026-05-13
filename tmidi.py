@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: Copyright (c) 2019 Alethea Flowers for Winterbloom
-# SPDX-FileCopyrightText: Copyright (c) 2024 Tod Kurt
+# SPDX-FileCopyrightText: Copyright (c) 2026 Tod Kurt
 #
 # SPDX-License-Identifier: MIT
 """
@@ -103,22 +103,22 @@ ACTIVE_SENSING = const(0xFE)
 SYSTEM_RESET = const(0xFF)
 """System Reset"""
 
-_LEN_0_MESSAGES = set(
-    [
-        TUNE_REQUEST,
-        SYSEX,
-        SYSEX_END,
-        CLOCK,
-        TICK,
-        START,
-        CONTINUE,
-        STOP,
-        ACTIVE_SENSING,
-        SYSTEM_RESET,
-    ]
-)
-_LEN_1_MESSAGES = set([PROGRAM_CHANGE, CHANNEL_PRESSURE, SONG_SELECT, BUS_SELECT])
-_LEN_2_MESSAGES = set([NOTE_OFF, NOTE_ON, AFTERTOUCH, CC, PITCH_BEND, SONG_POSITION])
+_MSG_DATA_LEN = {
+    NOTE_OFF: 2,
+    NOTE_ON: 2,
+    AFTERTOUCH: 2,
+    CC: 2,
+    PITCH_BEND: 2,
+    SONG_POSITION: 2,
+    PROGRAM_CHANGE: 1,
+    CHANNEL_PRESSURE: 1,
+    SONG_SELECT: 1,
+    BUS_SELECT: 1,
+}
+
+# Pre-allocated scratch buffer for __bytes__() — avoids per-call list allocation.
+# Safe because CircuitPython is single-threaded.
+_msg_buf = bytearray(3)
 
 _MSG_TYPE_NAMES = {
     NOTE_OFF: "NoteOff",
@@ -146,26 +146,6 @@ _MSG_TYPE_NAMES = {
 
 def _is_channel_message(status_byte):
     return status_byte >= NOTE_OFF and status_byte < SYSEX
-
-
-def _read_byte(port):
-    while not (buf := port.read(1)):
-        pass
-    return buf[0]
-
-
-# def _read_n_bytes(port, buf, dest, num_bytes):
-#     while num_bytes:
-#         if port.readinto(buf):
-#             dest.append(buf[0])
-#             num_bytes -= 1
-
-
-# def _read_byte_works(port):
-#     while True:
-#         buf = port.read(1)
-#         if buf:
-#             return buf[0]
 
 
 class Message:
@@ -208,18 +188,23 @@ class Message:
         self.channel = channel
         self.data0 = data0
         self.data1 = data1
-        if mtype == PITCH_BEND and data1 == 0:
+        if mtype == PITCH_BEND and data1 == 0 and not (0 <= data0 <= 0x7F):
             self.pitch_bend = data0
 
     def __bytes__(self):
         status_byte = self.type
         if _is_channel_message(status_byte):
             status_byte |= self.channel
-        if self.type in _LEN_2_MESSAGES:
-            return bytes([status_byte, self.data0, self.data1])
-        elif self.type in _LEN_1_MESSAGES:
-            return bytes([status_byte, self.data0])
-        return bytes([status_byte])
+        _msg_buf[0] = status_byte
+        n = _MSG_DATA_LEN.get(self.type, 0)
+        if n == 2:
+            _msg_buf[1] = self.data0
+            _msg_buf[2] = self.data1
+            return bytes(_msg_buf)
+        if n == 1:
+            _msg_buf[1] = self.data0
+            return bytes(_msg_buf[:2])
+        return bytes(_msg_buf[:1])
 
     def __repr__(self):
         return self.__str__()
@@ -230,9 +215,10 @@ class Message:
         ch_str = "ch:%d" % self.channel if _is_channel_message(mtype) else "-"
         if mtype == PITCH_BEND:
             return "%s %s %d)" % (type_str, ch_str, self.pitch_bend)
-        if mtype in _LEN_2_MESSAGES:
+        n = _MSG_DATA_LEN.get(mtype, 0)
+        if n == 2:
             return "%s %s %d %d)" % (type_str, ch_str, self.data0, self.data1)
-        if mtype in _LEN_1_MESSAGES:
+        if n == 1:
             return "%s %s %d)" % (type_str, ch_str, self.data0)
         return "%s)" % type_str
 
@@ -350,55 +336,63 @@ class MIDI:
 
         :returns Message object: Returns object or None for nothing.
         """
+        in_port = self._in_port
+        read_buf = self._read_buf
 
-        # Read the status byte for the next message.
-        # note: this will block if the port is set to have a timeout
-        status_byte_buf = self._in_port.read(1)
-
-        # No message ready.
-        if not status_byte_buf:
+        # Non-blocking: return None if no byte is waiting.
+        if not in_port.readinto(read_buf):
             return None
 
-        # Is this actually a status byte?
-        status_byte = status_byte_buf[0]
-        is_status = status_byte & 0x80
+        status_byte = read_buf[0]
 
-        # If not, see if we have a running status byte.
-        if not is_status:
+        # If not a status byte, try running status, otherwise discard.
+        if not (status_byte & 0x80):
             if self._running_status_enabled and self._running_status:
                 status_byte = self._running_status
-            # If not a status byte and no running status, this is invalid data.
             else:
                 self._error_count += 1
                 return None
 
-        message = Message(status_byte)
+        msg_type = status_byte
+        msg_channel = 0
 
-        # Is this a channel message, if so, let's figure out the right
-        # message type and set the message's channel property.
         if _is_channel_message(status_byte):
-            # Only set the running status byte for channel messages.
             self._running_status = status_byte
-            # Mask off the channel nibble.
-            message.type = status_byte & 0xF0
-            message.channel = status_byte & 0x0F
+            msg_type = status_byte & 0xF0
+            msg_channel = status_byte & 0x0F
 
-        # Read the appropriate number of bytes for each message type.
-        if message.type in _LEN_2_MESSAGES:
-            message.data0 = _read_byte(self._in_port)
-            message.data1 = _read_byte(self._in_port)
-        elif message.type in _LEN_1_MESSAGES:
-            message.data0 = _read_byte(self._in_port)
+        # Consume SysEx payload byte-by-byte until the terminator so the
+        # stream stays in sync; variable-length data is not stored.
+        if msg_type == SYSEX:
+            while True:
+                while not in_port.readinto(read_buf):
+                    pass
+                if read_buf[0] == SYSEX_END:
+                    break
+            return Message(SYSEX)
 
-        # Check the data bytes for corruption. status bytes in data
-        # means we're out of sync, so discard.
-        # TODO: Figure out a better way to detect and deal with this upstream.
-        for b in (message.data0 or 0, message.data1 or 0):
-            if b & 0x80:
+        data_len = _MSG_DATA_LEN.get(msg_type, 0)
+        data0 = 0
+        data1 = 0
+
+        if data_len >= 1:
+            while not in_port.readinto(read_buf):
+                pass
+            data0 = read_buf[0]
+            # A status byte appearing where data is expected means we're out of sync.
+            if data0 & 0x80:
                 self._error_count += 1
                 return None
 
-        return message
+        if data_len >= 2:
+            while not in_port.readinto(read_buf):
+                pass
+            data1 = read_buf[0]
+            if data1 & 0x80:
+                self._error_count += 1
+                return None
+
+        return Message(msg_type, data0, data1, msg_channel)
 
     def send(self, msg, channel=None):
         """Send a MIDI message.
@@ -409,14 +403,14 @@ class MIDI:
         """
 
         if isinstance(msg, Message):
-            if channel:
+            if channel is not None:
                 msg.channel = channel
             # bytes(object) does not work in uPy
             data = msg.__bytes__()
         else:
             data = bytearray()
             for each_msg in msg:
-                if channel:
+                if channel is not None:
                     each_msg.channel = channel
                 data.extend(each_msg.__bytes__())
 
