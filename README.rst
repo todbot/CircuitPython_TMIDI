@@ -113,7 +113,6 @@ Testing
 =======
 
 Install ``pytest`` with ``pip3 install pytest --upgrade`` and run ``pytest -v``
-To build docs:
 
 Contributing
 ============
