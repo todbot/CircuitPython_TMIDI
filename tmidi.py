@@ -215,6 +215,10 @@ class Message:
         ch_str = "ch:%d" % self.channel if _is_channel_message(mtype) else "-"
         if mtype == PITCH_BEND:
             return "%s %s %d)" % (type_str, ch_str, self.pitch_bend)
+        if mtype == SYSEX:
+            if self.data0:
+                return "%s %d bytes)" % (type_str, self.data0)
+            return "%s)" % type_str
         n = _MSG_DATA_LEN.get(mtype, 0)
         if n == 2:
             return "%s %s %d %d)" % (type_str, ch_str, self.data0, self.data1)
@@ -271,6 +275,27 @@ class MIDI:
     :param midi_out: an object which implements ``write(buffer, length)``,
         set to ``usb_midi.ports[1]`` for USB MIDI, default None.
     :param bool enable_running_status: Allow running status messages to work, default False.
+    :param bytearray sysex_buffer: Optional pre-allocated buffer for capturing SysEx payloads.
+        When provided, received SysEx payload bytes are written into this buffer and
+        ``msg.data0`` on the returned message holds the number of bytes written.
+        If the payload exceeds the buffer length, the overflow is consumed and discarded
+        so the stream stays in sync. When ``None`` (default), SysEx payloads are discarded
+        and ``msg.data0`` is 0.
+
+    Example of receiving SysEx with payload capture:
+
+    .. code-block:: python
+
+        import usb_midi
+        import tmidi
+        sysex_buf = bytearray(128)
+        midi = tmidi.MIDI(midi_in=usb_midi.ports[0], sysex_buffer=sysex_buf)
+
+        while True:
+            if msg := midi.receive():
+                if msg.type == tmidi.SYSEX:
+                    payload = memoryview(sysex_buf)[: msg.data0]
+                    print("SysEx:", list(payload))
 
     Example of sending MIDI over USB:
 
@@ -313,12 +338,15 @@ class MIDI:
                 print("uart midi:", msg)
     """
 
-    def __init__(self, midi_in=None, midi_out=None, enable_running_status=False):
+    def __init__(
+        self, midi_in=None, midi_out=None, enable_running_status=False, sysex_buffer=None
+    ):
         self._in_port = midi_in
         self._out_port = midi_out
         self._running_status_enabled = enable_running_status
         self._running_status = None
         self._error_count = 0
+        self._sysex_buf = sysex_buffer
 
         # This input buffer holds what has been read from midi_in
         self._read_buf = bytearray(1)
@@ -362,16 +390,23 @@ class MIDI:
             msg_channel = status_byte & 0x0F
 
         # Consume SysEx payload byte-by-byte until the terminator so the
-        # stream stays in sync; variable-length data is not stored.
-        # SysEx cancels running status per the MIDI spec.
+        # stream stays in sync. SysEx cancels running status per the MIDI spec.
+        # If sysex_buffer was provided, payload bytes are written into it;
+        # the returned message's data0 holds the number of bytes written.
         if msg_type == SYSEX:
             self._running_status = None
+            sysex_buf = self._sysex_buf
+            sysex_len = 0
             while True:
                 while not in_port.readinto(read_buf):
                     pass
-                if read_buf[0] == SYSEX_END:
+                b = read_buf[0]
+                if b == SYSEX_END:
                     break
-            return Message(SYSEX)
+                if sysex_buf is not None and sysex_len < len(sysex_buf):
+                    sysex_buf[sysex_len] = b
+                    sysex_len += 1
+            return Message(SYSEX, sysex_len)
 
         data_len = _MSG_DATA_LEN.get(msg_type, 0)
         data0 = 0

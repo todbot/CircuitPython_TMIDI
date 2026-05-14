@@ -74,6 +74,42 @@ def test_sysex_consecutive():
     assert midi_in.error_count == 0
 
 
+def test_sysex_buffer_captures_payload():
+    payload = [0x7E, 0x7F, 0x06, 0x01]
+    port = PortStub(iter([0xF0] + payload + [0xF7]))
+    sysex_buf = bytearray(16)
+    midi_in = tmidi.MIDI(midi_in=port, sysex_buffer=sysex_buf)
+    msg = midi_in.receive()
+    assert msg is not None
+    assert msg.type == tmidi.SYSEX
+    assert msg.data0 == len(payload)
+    assert list(sysex_buf[: msg.data0]) == payload
+    assert midi_in.error_count == 0
+
+
+def test_sysex_buffer_truncates_when_full():
+    # Payload longer than buffer — stream must stay in sync, no hang.
+    payload = list(range(32))
+    port = PortStub(iter([0xF0] + payload + [0xF7, 0x90, 60, 100]))
+    sysex_buf = bytearray(8)
+    midi_in = tmidi.MIDI(midi_in=port, sysex_buffer=sysex_buf)
+    msg1 = midi_in.receive()
+    assert msg1 is not None and msg1.type == tmidi.SYSEX
+    assert msg1.data0 == 8  # buffer filled to capacity
+    assert list(sysex_buf) == payload[:8]
+    msg2 = midi_in.receive()
+    assert msg2 is not None and msg2.type == tmidi.NOTE_ON
+    assert midi_in.error_count == 0
+
+
+def test_sysex_no_buffer_data0_is_zero():
+    port = PortStub(iter([0xF0, 0x7E, 0x7F, 0xF7]))
+    midi_in = tmidi.MIDI(midi_in=port)
+    msg = midi_in.receive()
+    assert msg is not None and msg.type == tmidi.SYSEX
+    assert msg.data0 == 0
+
+
 def test_sysex_does_not_set_running_status():
     # SysEx is a system message and must not update running status.
     # A data byte after SysEx with no new status should be an error,
