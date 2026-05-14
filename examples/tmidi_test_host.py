@@ -272,12 +272,8 @@ examples:
         action="store_true",
         help="test via USB MIDI (requires mido + python-rtmidi)",
     )
-    mode.add_argument(
-        "--serial", metavar="PORT", help="test via serial port (requires pyserial)"
-    )
-    parser.add_argument(
-        "--port", metavar="NAME", help="MIDI output port name (--usb-midi only)"
-    )
+    mode.add_argument("--serial", metavar="PORT", help="test via serial port (requires pyserial)")
+    parser.add_argument("--port", metavar="NAME", help="MIDI output port name (--usb-midi only)")
     args = parser.parse_args()
 
     print("tmidi hardware-in-the-loop test")

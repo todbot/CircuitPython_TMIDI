@@ -30,9 +30,7 @@ while True:
         if msg.type == tmidi.NOTE_ON and msg.velocity > 0:
             print("note on", msg)
             pressed_notes.append(msg.note)
-        elif msg.type == tmidi.NOTE_OFF or (
-            msg.type == tmidi.NOTE_ON and msg.velocity == 0
-        ):
+        elif msg.type == tmidi.NOTE_OFF or (msg.type == tmidi.NOTE_ON and msg.velocity == 0):
             if msg.note in pressed_notes:
                 midi.send(msg)  # send the note off
                 pressed_notes.remove(msg.note)
