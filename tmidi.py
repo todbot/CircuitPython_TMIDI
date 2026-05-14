@@ -363,7 +363,9 @@ class MIDI:
 
         # Consume SysEx payload byte-by-byte until the terminator so the
         # stream stays in sync; variable-length data is not stored.
+        # SysEx cancels running status per the MIDI spec.
         if msg_type == SYSEX:
+            self._running_status = None
             while True:
                 while not in_port.readinto(read_buf):
                     pass
