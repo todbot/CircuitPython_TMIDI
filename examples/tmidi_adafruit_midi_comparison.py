@@ -23,14 +23,18 @@ import time
 # fmt: off
 _PATTERN = bytes([
     0x90, 60, 100,      # NOTE_ON
+    0xF8,               # CLOCK
     0x80, 60,   0,      # NOTE_OFF
     0xB0, 74,  64,      # CC
+    0xF8,               # CLOCK
     0xD0, 64,           # CHANNEL_PRESSURE
     0xC0, 42,           # PROGRAM_CHANGE
+    0xFA,               # START
     0xE0, 0x00, 0x40,   # PITCH_BEND center
+    0xFC,               # STOP
 ])
 # fmt: on
-_MSGS_PER_PATTERN = 6  # update this when adding/removing rows above
+_MSGS_PER_PATTERN = 10  # update this when adding/removing rows above
 REPS = 1000
 BENCH_BYTES = _PATTERN * REPS
 
@@ -99,6 +103,9 @@ try:
     from adafruit_midi.pitch_bend import PitchBend  # noqa: F401
     from adafruit_midi.channel_pressure import ChannelPressure  # noqa: F401
     from adafruit_midi.program_change import ProgramChange  # noqa: F401
+    from adafruit_midi.timing_clock import TimingClock  # noqa: F401
+    from adafruit_midi.start import Start  # noqa: F401
+    from adafruit_midi.stop import Stop  # noqa: F401
 
     midi = adafruit_midi.MIDI(midi_in=BufPort(BENCH_BYTES), in_channel=0)
     results["adafruit_midi"] = run_benchmark(midi, "adafruit_midi")
@@ -107,4 +114,4 @@ except ImportError:
 
 if "tmidi" in results and "adafruit_midi" in results:
     ratio = results["adafruit_midi"] / results["tmidi"]
-    print(f"\ntmidi is {ratio:.1f}x faster than adafruit_midi")
+    print(f"tmidi is {ratio:.1f}x faster than adafruit_midi\n")
