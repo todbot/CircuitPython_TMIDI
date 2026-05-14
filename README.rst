@@ -112,7 +112,7 @@ For information on building library documentation, please check out
 Testing
 =======
 
-Install ``pytest`` with ``pip3 install pytest --upgrade`` and run ``pytest -v``
+Install ``pytest`` with ``pip3 install pytest circuitpython-mocks --upgrade`` and run ``pytest -v``
 
 Contributing
 ============

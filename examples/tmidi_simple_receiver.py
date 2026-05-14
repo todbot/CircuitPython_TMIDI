@@ -12,20 +12,8 @@ midi_usb = tmidi.MIDI(midi_in=usb_midi.ports[0], midi_out=usb_midi.ports[1])
 while True:
     if msg := midi_usb.receive():
         if msg.type == tmidi.NOTE_ON and msg.velocity > 0:
-            print(
-                "note on: note:",
-                msg.note,
-                "vel:",
-                msg.velocity,
-                "channel:",
-                msg.channel,
-            )
-        elif msg.type == tmidi.NOTE_OFF or msg.velocity == 0:
-            print(
-                "note off: note:",
-                msg.note,
-                "vel:",
-                msg.velocity,
-                "channel:",
-                msg.channel,
-            )
+            print(f"note on: note: {msg.note} vel: {msg.velocity} channel: {msg.channel}")
+        elif msg.type == tmidi.NOTE_OFF or (msg.type == tmidi.NOTE_ON and msg.velocity == 0):
+            print(f"note off: note: {msg.note} vel: {msg.velocity} channel: {msg.channel}")
+        else:
+            print("msg:", msg)
