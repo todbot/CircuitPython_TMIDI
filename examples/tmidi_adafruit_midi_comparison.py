@@ -19,10 +19,20 @@ Example output (RP2350 Pico 2):
 import gc
 import time
 
-# 3 msg types × 3 bytes × 1000 repetitions = 3000 messages
-_PATTERN = bytes([0x90, 60, 100, 0xB0, 74, 64, 0xE0, 0x00, 0x40])
-MSG_COUNT = 6000
-BENCH_BYTES = _PATTERN * (MSG_COUNT // 3)
+# One repetition of every message type to test. Add/remove rows freely.
+# fmt: off
+_PATTERN = bytes([
+    0x90, 60, 100,      # NOTE_ON
+    0x80, 60,   0,      # NOTE_OFF
+    0xB0, 74,  64,      # CC
+    0xD0, 64,           # CHANNEL_PRESSURE
+    0xC0, 42,           # PROGRAM_CHANGE
+    0xE0, 0x00, 0x40,   # PITCH_BEND center
+])
+# fmt: on
+_MSGS_PER_PATTERN = 6  # update this when adding/removing rows above
+REPS = 1000
+BENCH_BYTES = _PATTERN * REPS
 
 
 class BufPort:
@@ -85,7 +95,10 @@ try:
     import adafruit_midi
     from adafruit_midi.control_change import ControlChange  # noqa: F401
     from adafruit_midi.note_on import NoteOn  # noqa: F401
+    from adafruit_midi.note_off import NoteOff  # noqa: F401
     from adafruit_midi.pitch_bend import PitchBend  # noqa: F401
+    from adafruit_midi.channel_pressure import ChannelPressure  # noqa: F401
+    from adafruit_midi.program_change import ProgramChange  # noqa: F401
 
     midi = adafruit_midi.MIDI(midi_in=BufPort(BENCH_BYTES), in_channel=0)
     results["adafruit_midi"] = run_benchmark(midi, "adafruit_midi")
