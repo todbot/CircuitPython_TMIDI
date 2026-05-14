@@ -17,6 +17,17 @@ Introduction
 
 MIDI library for CircuitPython
 
+TMIDI is a MIDI library for CircuitPython / MicroPython. It attempts to
+be a provide a simpler API and perform faster, especially for MIDI parsing,
+compared to ``adafruit_midi`` (`adafruit_midi github <https://github.com/adafruit/Adafruit_CircuitPython_MIDI/>`_)
+TMIDI is derived from  ``winterbloom_smolmidi``
+(`SmolMidi github <https://github.com/wntrblm/Winterbloom_SmolMIDI>`_)
+by Thea Flowers for Winterbloom.
+
+Like ``adafruit_midi``, TMIDI works on CircuitPython's ``usb_midi`` and ``busio.UART``,
+or any stream-like object that supports ``.readinto()`` and ``.write()``
+
+
 
 Dependencies
 =============

@@ -36,10 +36,7 @@ Table of Contents
     Download Library Bundle <https://circuitpython.org/libraries>
     CircuitPython Reference Documentation <https://docs.circuitpython.org>
     CircuitPython Support Forum <https://forums.adafruit.com/viewforum.php?f=60>
-    Discord Chat <https://adafru.it/discord>
-    Adafruit Learning System <https://learn.adafruit.com>
-    Adafruit Blog <https://blog.adafruit.com>
-    Adafruit Store <https://www.adafruit.com>
+
 
 Indices and tables
 ==================
