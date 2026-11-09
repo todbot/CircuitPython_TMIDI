@@ -16,12 +16,12 @@ the pure Python one.
 Example output (RP2040 Pico @ 125 MHz, CircuitPython 11.0.0-alpha.2,
 tmidi_kernel.armv6m.mpy and adafruit_midi as .mpy):
   engine: viper
-  tmidi (viper)      : 10000 msgs, 209 µs/msg, heap: -32 bytes
-  tmidi (Python)     : 10000 msgs, 289 µs/msg, heap: -32 bytes
-  tmidi poll (viper) : 10000 msgs, 47 µs/msg, heap: -32 bytes
-  tmidi poll (Python): 10000 msgs, 114 µs/msg, heap: -32 bytes
-  adafruit_midi      : 10000 msgs, 1011 µs/msg, heap: -32 bytes
-  tmidi (viper) is 4.8x faster than adafruit_midi
+  tmidi (viper)      : 20000 msgs, 206 µs/msg, heap: -80 bytes
+  tmidi (Python)     : 20000 msgs, 301 µs/msg, heap: -32 bytes
+  tmidi poll (viper) : 20000 msgs, 51 µs/msg, heap: -32 bytes
+  tmidi poll (Python): 20000 msgs, 134 µs/msg, heap: -32 bytes
+  adafruit_midi      : 20000 msgs, 1063 µs/msg, heap: -32 bytes
+  tmidi (viper) is 5.2x faster than adafruit_midi
   tmidi (Python) is 3.5x faster than adafruit_midi
 """
 
@@ -33,17 +33,27 @@ import time
 _PATTERN = bytes([
     0x90, 60, 100,      # NOTE_ON
     0xF8,               # CLOCK
-    0x80, 60,   0,      # NOTE_OFF
+    0x90, 64, 100,      # NOTE_ON
     0xB0, 74,  64,      # CC
+    0x80, 60,   0,      # NOTE_OFF
     0xF8,               # CLOCK
+    0x90, 67, 100,      # NOTE_ON
     0xD0, 64,           # CHANNEL_PRESSURE
+    0x80, 64,   0,      # NOTE_OFF
     0xC0, 42,           # PROGRAM_CHANGE
+    0x90, 72, 100,      # NOTE_ON
     0xFA,               # START
+    0x80, 67,   0,      # NOTE_OFF
     0xE0, 0x00, 0x40,   # PITCH_BEND center
+    0x90, 76, 100,      # NOTE_ON
     0xFC,               # STOP
+    0x80, 72,   0,      # NOTE_OFF
+    0x90, 79, 100,      # NOTE_ON
+    0x80, 76,   0,      # NOTE_OFF
+    0x80, 79,   0,      # NOTE_OFF
 ])
 # fmt: on
-_MSGS_PER_PATTERN = 10  # update this when adding/removing rows above
+_MSGS_PER_PATTERN = 20  # update this when adding/removing rows above
 REPS = 1000
 BENCH_BYTES = _PATTERN * REPS
 
