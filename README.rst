@@ -27,6 +27,45 @@ by Thea Flowers for Winterbloom.
 Like ``adafruit_midi``, TMIDI works on CircuitPython's ``usb_midi`` and ``busio.UART``,
 or any stream-like object that supports ``.readinto()`` and ``.write()``
 
+Callbacks
+=========
+
+Instead of ``receive()``, register functions for the message types you want
+and call ``poll()``. No ``Message`` objects are allocated.
+
+.. code-block:: python
+
+    def note_on(channel, note, velocity):
+        print("note on:", channel, note, velocity)
+
+    midi.on(tmidi.NOTE_ON, note_on)
+    while True:
+        midi.poll()
+
+Turbo parser
+============
+
+TMIDI runs entirely in Python, but will use an optional ``@micropython.viper``
+parser if ``tmidi_kernel.<arch>.mpy`` for your board is in ``lib/`` and your
+firmware can load native code. ``tmidi.ENGINE`` says which one is in use.
+
+======================  =====================================
+``tmidi_kernel`` file   Boards
+======================  =====================================
+``armv6m``              RP2040
+``armv7emsp``           SAMD51, nRF52840, RP2350, STM32F4
+``xtensawin``           ESP32-S2, ESP32-S3
+``rv32imc``             ESP32-C3, C5, C6
+======================  =====================================
+
+Build them with an ``mpy-cross`` from the CircuitPython version they will run
+on. The files land in ``src/build/``:
+
+.. code-block:: shell
+
+    cd src
+    make MPY_CROSS=path/to/circuitpython/mpy-cross/build/mpy-cross
+
 
 
 Dependencies

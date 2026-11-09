@@ -59,7 +59,19 @@ __repo__ = "https://github.com/todbot/CircuitPython_TMIDI.git"
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+from array import array
+
 from micropython import const
+
+# Prebuilt per chip as tmidi_kernel.<arch>.mpy from src/tmidi_turbo.py.
+# Missing on Blinka and on firmware without native code.
+try:
+    from tmidi_kernel import parse as _kernel_parse
+except (ImportError, ValueError):
+    _kernel_parse = None
+
+ENGINE = "Python" if _kernel_parse is None else "viper"
+"""``"viper"`` when the turbo parser loaded, else ``"Python"``."""
 
 # Message type constants.
 NOTE_OFF = const(0x80)
@@ -146,6 +158,122 @@ _MSG_TYPE_NAMES = {
 
 def _is_channel_message(status_byte):
     return status_byte >= NOTE_OFF and status_byte < SYSEX
+
+
+# Keep in sync with the _ST_ slots in src/tmidi_turbo.py
+_ST_RD = const(0)
+_ST_WR = const(1)
+_ST_STATUS = const(2)
+_ST_NEED = const(3)
+_ST_DATA0 = const(4)
+_ST_SX_LEN = const(5)
+_ST_SX_CAP = const(6)
+_ST_ERRORS = const(7)
+_ST_RUNNING = const(8)
+_ST_RUNNING_ON = const(9)
+_ST_SIZE = const(10)
+
+_NEED_ONE = const(1)
+_NEED_FIRST = const(2)
+_NEED_SECOND = const(3)
+
+_READ_SIZE = const(64)
+_MAX_SYSEX = const(65535)
+
+_NO_SYSEX = bytearray(0)
+
+
+def _parse_py(buf, st, sx):
+    """Return next message from buf as status<<16|data0<<8|data1, 0 if drained.
+
+    Keep in sync with the viper version in src/tmidi_turbo.py.
+    """
+    rd = st[_ST_RD]
+    wr = st[_ST_WR]
+    status = st[_ST_STATUS]
+    need = st[_ST_NEED]
+
+    while rd < wr:
+        b = buf[rd]
+        rd += 1
+
+        # real-time can land inside any message and must not disturb it
+        if b >= 0xF8:
+            st[_ST_RD] = rd
+            st[_ST_STATUS] = status
+            st[_ST_NEED] = need
+            return b << 16
+
+        if b >= 0x80:
+            if b == 0xF7 and status == 0xF0:
+                st[_ST_RD] = rd
+                st[_ST_STATUS] = 0
+                st[_ST_NEED] = 0
+                return 0xF00000 | st[_ST_SX_LEN]
+
+            if status != 0:
+                st[_ST_ERRORS] = (st[_ST_ERRORS] + 1) & 0xFFFF
+
+            status = b
+            if b < 0xF0:
+                if st[_ST_RUNNING_ON] != 0:
+                    st[_ST_RUNNING] = b
+                if (b & 0xE0) == 0xC0:
+                    need = _NEED_ONE
+                else:
+                    need = _NEED_FIRST
+                continue
+
+            st[_ST_RUNNING] = 0
+            if b == 0xF0:
+                need = 0
+                st[_ST_SX_LEN] = 0
+                continue
+            if b == 0xF2:
+                need = _NEED_FIRST
+                continue
+            if b == 0xF3 or b == 0xF5:
+                need = _NEED_ONE
+                continue
+
+            st[_ST_RD] = rd
+            st[_ST_STATUS] = 0
+            st[_ST_NEED] = 0
+            return b << 16
+
+        if status == 0xF0:
+            n = st[_ST_SX_LEN]
+            if n < st[_ST_SX_CAP]:
+                sx[n] = b
+                st[_ST_SX_LEN] = n + 1
+            continue
+
+        if status == 0:
+            status = st[_ST_RUNNING]
+            if status == 0:
+                st[_ST_ERRORS] = (st[_ST_ERRORS] + 1) & 0xFFFF
+                continue
+            if (status & 0xE0) == 0xC0:
+                need = _NEED_ONE
+            else:
+                need = _NEED_FIRST
+
+        if need == _NEED_FIRST:
+            st[_ST_DATA0] = b
+            need = _NEED_SECOND
+            continue
+
+        st[_ST_RD] = rd
+        st[_ST_STATUS] = 0
+        st[_ST_NEED] = 0
+        if need == _NEED_SECOND:
+            return status << 16 | st[_ST_DATA0] << 8 | b
+        return status << 16 | b << 8
+
+    st[_ST_RD] = rd
+    st[_ST_STATUS] = status
+    st[_ST_NEED] = need
+    return 0
 
 
 class Message:
@@ -281,6 +409,23 @@ class MIDI:
         If the payload exceeds the buffer length, the overflow is consumed and discarded
         so the stream stays in sync. When ``None`` (default), SysEx payloads are discarded
         and ``msg.data0`` is 0.
+    :param bool turbo: Use the viper parser if it loaded (see ``ENGINE``), default True.
+
+    Example of receiving with callbacks, which avoids allocating ``Message`` objects:
+
+    .. code-block:: python
+
+        import usb_midi
+        import tmidi
+
+        def note_on(channel, note, velocity):
+            print("note on:", channel, note, velocity)
+
+        midi = tmidi.MIDI(midi_in=usb_midi.ports[0])
+        midi.on(tmidi.NOTE_ON, note_on)
+
+        while True:
+            midi.poll()
 
     Example of receiving SysEx with payload capture:
 
@@ -339,97 +484,129 @@ class MIDI:
     """
 
     def __init__(
-        self, midi_in=None, midi_out=None, enable_running_status=False, sysex_buffer=None
+        self,
+        midi_in=None,
+        midi_out=None,
+        enable_running_status=False,
+        sysex_buffer=None,
+        turbo=True,
     ):
         self._in_port = midi_in
         self._out_port = midi_out
-        self._running_status_enabled = enable_running_status
-        self._running_status = None
-        self._error_count = 0
-        self._sysex_buf = sysex_buffer
+        self._has_in_waiting = hasattr(midi_in, "in_waiting")
+        self._parse = _kernel_parse if turbo and _kernel_parse else _parse_py
+        self._callbacks = {}
 
-        # This input buffer holds what has been read from midi_in
-        self._read_buf = bytearray(1)
+        self._bulk_read = True
+        self._one = bytearray(1)
+        self._buf = bytearray(_READ_SIZE)
+        self._sx = _NO_SYSEX if sysex_buffer is None else sysex_buffer
+        self._st = array("H", [0] * _ST_SIZE)
+        self._st[_ST_SX_CAP] = min(len(self._sx), _MAX_SYSEX)
+        self._st[_ST_RUNNING_ON] = 1 if enable_running_status else 0
 
     @property
     def error_count(self):
         """Number of errors encountered when parsing received messages"""
-        return self._error_count
+        return self._st[_ST_ERRORS]
+
+    def _fill(self):
+        n = _READ_SIZE
+        if self._has_in_waiting:
+            # a large readinto on UART would block toward its timeout
+            n = min(self._in_port.in_waiting, _READ_SIZE)
+            if not n:
+                return 0
+        if self._bulk_read:
+            try:
+                n = self._in_port.readinto(self._buf, n) or 0
+            except TypeError:
+                # adafruit_usb_host_midi has readinto(buf), which must be filled exactly
+                self._bulk_read = False
+                return self._fill()
+        else:
+            n = self._in_port.readinto(self._one) or 0
+            if n:
+                self._buf[0] = self._one[0]
+        self._st[_ST_RD] = 0
+        self._st[_ST_WR] = n
+        return n
 
     def receive(self):
-        """Read message from MIDI port, parse that data and
-        return the first MIDI message (event).
-        This maintains the blocking characteristics of the midi_in port.
-        Relies on the port to buffer the incoming unread MIDI messages.
+        """Read from MIDI port, parse that data and return the next MIDI message.
+        Does not wait: a partly received message is kept until the rest arrives.
 
         :returns Message object: Returns object or None for nothing.
         """
-        in_port = self._in_port
-        read_buf = self._read_buf
+        parse = self._parse
+        buf = self._buf
+        st = self._st
+        sx = self._sx
 
-        # Non-blocking: return None if no byte is waiting.
-        if not in_port.readinto(read_buf):
-            return None
+        r = parse(buf, st, sx)
+        while not r:
+            if not self._fill():
+                return None
+            r = parse(buf, st, sx)
 
-        status_byte = read_buf[0]
+        status = r >> 16
+        if status < SYSEX:
+            return Message(status & 0xF0, (r >> 8) & 0xFF, r & 0xFF, status & 0x0F)
+        if status == SYSEX:
+            return Message(SYSEX, r & 0xFFFF)
+        return Message(status, (r >> 8) & 0xFF, r & 0xFF)
 
-        # If not a status byte, try running status, otherwise discard.
-        if not (status_byte & 0x80):
-            if self._running_status_enabled and self._running_status:
-                status_byte = self._running_status
+    def on(self, mtype, func):
+        """Register a function to be called by :meth:`poll` for a type of message.
+        There is one function per message type.
+
+        :param int mtype: The type of message, e.g. ``tmidi.NOTE_ON``.
+        :param func: Called as ``func(channel, data0, data1)`` with the raw data bytes.
+            ``channel`` is 0 for system messages. For ``tmidi.SYSEX``, ``data0`` is
+            the number of bytes written to ``sysex_buffer``.
+            Use ``None`` to unregister.
+        """
+        if func is None:
+            self._callbacks.pop(mtype, None)
+        else:
+            self._callbacks[mtype] = func
+
+    def poll(self, limit=32):
+        """Parse waiting MIDI data, calling functions registered with :meth:`on`.
+
+        :param int limit: Most messages to handle, so a busy port can't starve
+            the main loop.
+        :returns int: Number of messages parsed
+        """
+        parse = self._parse
+        buf = self._buf
+        st = self._st
+        sx = self._sx
+        callbacks = self._callbacks
+
+        count = 0
+        while count < limit:
+            r = parse(buf, st, sx)
+            while not r:
+                if not self._fill():
+                    return count
+                r = parse(buf, st, sx)
+            count += 1
+
+            status = r >> 16
+            if status < SYSEX:
+                func = callbacks.get(status & 0xF0)
+                if func:
+                    func(status & 0x0F, (r >> 8) & 0xFF, r & 0xFF)
+            elif status == SYSEX:
+                func = callbacks.get(SYSEX)
+                if func:
+                    func(0, r & 0xFFFF, 0)
             else:
-                self._error_count += 1
-                return None
-
-        msg_type = status_byte
-        msg_channel = 0
-
-        if _is_channel_message(status_byte):
-            self._running_status = status_byte
-            msg_type = status_byte & 0xF0
-            msg_channel = status_byte & 0x0F
-
-        # Consume SysEx payload byte-by-byte until the terminator so the
-        # stream stays in sync. SysEx cancels running status per the MIDI spec.
-        # If sysex_buffer was provided, payload bytes are written into it;
-        # the returned message's data0 holds the number of bytes written.
-        if msg_type == SYSEX:
-            self._running_status = None
-            sysex_buf = self._sysex_buf
-            sysex_len = 0
-            while True:
-                while not in_port.readinto(read_buf):
-                    pass
-                b = read_buf[0]
-                if b == SYSEX_END:
-                    break
-                if sysex_buf is not None and sysex_len < len(sysex_buf):
-                    sysex_buf[sysex_len] = b
-                    sysex_len += 1
-            return Message(SYSEX, sysex_len)
-
-        data_len = _MSG_DATA_LEN.get(msg_type, 0)
-        data0 = 0
-        data1 = 0
-
-        if data_len >= 1:
-            while not in_port.readinto(read_buf):
-                pass
-            data0 = read_buf[0]
-            # A status byte appearing where data is expected means we're out of sync.
-            if data0 & 0x80:
-                self._error_count += 1
-                return None
-
-        if data_len >= 2:
-            while not in_port.readinto(read_buf):
-                pass
-            data1 = read_buf[0]
-            if data1 & 0x80:
-                self._error_count += 1
-                return None
-
-        return Message(msg_type, data0, data1, msg_channel)
+                func = callbacks.get(status)
+                if func:
+                    func(0, (r >> 8) & 0xFF, r & 0xFF)
+        return count
 
     def send(self, msg, channel=None):
         """Send a MIDI message.

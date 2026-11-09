@@ -49,3 +49,7 @@ optional-dependencies = {optional = {file = ["optional_requirements.txt"]}}
 
 [tool.ruff]
 line-length = 90
+
+[tool.ruff.lint.per-file-ignores]
+# ptr8/ptr16 are viper compiler builtins
+"src/tmidi_turbo.py" = ["F821"]

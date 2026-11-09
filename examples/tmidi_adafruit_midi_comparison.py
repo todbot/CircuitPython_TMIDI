@@ -10,10 +10,8 @@ Copy both tmidi.py and adafruit_midi/ to the board's lib/ folder, then run this
 script. Each library is tested against the same pre-loaded byte buffer so results
 are directly comparable. Results print as µs/msg and net heap change.
 
-Example output (RP2350 Pico 2):
-  tmidi          : 6000 msgs, 160 µs/msg, heap: -32 bytes
-  adafruit_midi  : 6000 msgs, 385 µs/msg, heap: -32 bytes
-  tmidi is 2.4x faster than adafruit_midi
+Prints µs/msg for receive() and poll(), on the viper parser if it loaded and on
+the pure Python one.
 """
 
 import gc
@@ -57,22 +55,29 @@ class BufPort:
         return chunk
 
     def readinto(self, buf, numbytes=1):
-        if self._pos >= len(self._data):
+        n = min(numbytes, len(self._data) - self._pos)
+        if n <= 0:
             return 0
-        buf[0] = self._data[self._pos]
-        self._pos += 1
-        return 1
+        buf[:n] = self._data[self._pos : self._pos + n]
+        self._pos += n
+        return n
 
 
-def run_benchmark(midi, label):
+def run_benchmark(midi, label, poll=False):
     gc.collect()
     free_before = gc.mem_free()
     t0 = time.monotonic_ns()
     count = 0
     while True:
-        if midi.receive() is None:
-            break
-        count += 1
+        if poll:
+            n = midi.poll()
+            if not n:
+                break
+            count += n
+        else:
+            if midi.receive() is None:
+                break
+            count += 1
     elapsed_us = (time.monotonic_ns() - t0) // 1000
     gc.collect()
     heap_delta = gc.mem_free() - free_before
@@ -90,8 +95,20 @@ try:
     import tmidi
     # import tmidi_old as tmidi
 
+    print("  engine:", tmidi.ENGINE)
     midi = tmidi.MIDI(midi_in=BufPort(BENCH_BYTES))
     results["tmidi"] = run_benchmark(midi, "tmidi")
+    midi = tmidi.MIDI(midi_in=BufPort(BENCH_BYTES), turbo=False)
+    run_benchmark(midi, "tmidi Python")
+
+    def _on_msg(channel, data0, data1):
+        pass
+
+    for turbo in (True, False):
+        midi = tmidi.MIDI(midi_in=BufPort(BENCH_BYTES), turbo=turbo)
+        for mtype in (tmidi.NOTE_ON, tmidi.NOTE_OFF, tmidi.CC, tmidi.CLOCK):
+            midi.on(mtype, _on_msg)
+        run_benchmark(midi, "poll" if turbo else "poll Python", poll=True)
 except ImportError:
     print("  tmidi: not installed")
 
