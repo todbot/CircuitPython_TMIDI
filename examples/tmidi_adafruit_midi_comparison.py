@@ -12,6 +12,17 @@ are directly comparable. Results print as µs/msg and net heap change.
 
 Prints µs/msg for receive() and poll(), on the viper parser if it loaded and on
 the pure Python one.
+
+Example output (RP2040 Pico @ 125 MHz, CircuitPython 11.0.0-alpha.2,
+tmidi_kernel.armv6m.mpy and adafruit_midi as .mpy):
+  engine: viper
+  tmidi (viper)      : 10000 msgs, 209 µs/msg, heap: -32 bytes
+  tmidi (Python)     : 10000 msgs, 289 µs/msg, heap: -32 bytes
+  tmidi poll (viper) : 10000 msgs, 47 µs/msg, heap: -32 bytes
+  tmidi poll (Python): 10000 msgs, 114 µs/msg, heap: -32 bytes
+  adafruit_midi      : 10000 msgs, 1011 µs/msg, heap: -32 bytes
+  tmidi (viper) is 4.8x faster than adafruit_midi
+  tmidi (Python) is 3.5x faster than adafruit_midi
 """
 
 import gc
@@ -82,7 +93,7 @@ def run_benchmark(midi, label, poll=False):
     gc.collect()
     heap_delta = gc.mem_free() - free_before
     us_per_msg = elapsed_us // count if count else 0
-    print(f"  {label:<15}: {count} msgs, {us_per_msg} µs/msg, heap: {heap_delta} bytes")
+    print(f"  {label:<19}: {count} msgs, {us_per_msg} µs/msg, heap: {heap_delta} bytes")
     return us_per_msg
 
 
@@ -97,9 +108,9 @@ try:
 
     print("  engine:", tmidi.ENGINE)
     midi = tmidi.MIDI(midi_in=BufPort(BENCH_BYTES))
-    results["tmidi"] = run_benchmark(midi, "tmidi")
+    results["tmidi"] = run_benchmark(midi, f"tmidi ({tmidi.ENGINE})")
     midi = tmidi.MIDI(midi_in=BufPort(BENCH_BYTES), turbo=False)
-    run_benchmark(midi, "tmidi Python")
+    results["tmidi_py"] = run_benchmark(midi, "tmidi (Python)")
 
     def _on_msg(channel, data0, data1):
         pass
@@ -108,7 +119,8 @@ try:
         midi = tmidi.MIDI(midi_in=BufPort(BENCH_BYTES), turbo=turbo)
         for mtype in (tmidi.NOTE_ON, tmidi.NOTE_OFF, tmidi.CC, tmidi.CLOCK):
             midi.on(mtype, _on_msg)
-        run_benchmark(midi, "poll" if turbo else "poll Python", poll=True)
+        engine = tmidi.ENGINE if turbo else "Python"
+        run_benchmark(midi, f"tmidi poll ({engine})", poll=True)
 except ImportError:
     print("  tmidi: not installed")
 
@@ -131,4 +143,8 @@ except ImportError:
 
 if "tmidi" in results and "adafruit_midi" in results:
     ratio = results["adafruit_midi"] / results["tmidi"]
-    print(f"tmidi is {ratio:.1f}x faster than adafruit_midi\n")
+    print(f"tmidi ({tmidi.ENGINE}) is {ratio:.1f}x faster than adafruit_midi")
+    if tmidi.ENGINE != "Python":
+        ratio = results["adafruit_midi"] / results["tmidi_py"]
+        print(f"tmidi (Python) is {ratio:.1f}x faster than adafruit_midi")
+    print()
