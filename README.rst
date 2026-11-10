@@ -27,6 +27,44 @@ by Thea Flowers for Winterbloom.
 Like ``adafruit_midi``, TMIDI works on CircuitPython's ``usb_midi`` and ``busio.UART``,
 or any stream-like object that supports ``.readinto()`` and ``.write()``
 
+Usage Example
+=============
+
+Sending MIDI over USB. Channels are 0-indexed, so ``channel=0`` is
+MIDI channel 1:
+
+.. code-block:: python
+
+    import time
+    import usb_midi
+    import tmidi
+
+    midi = tmidi.MIDI(midi_out=usb_midi.ports[1])
+
+    while True:
+        midi.send(tmidi.Message(tmidi.NOTE_ON, 60, 100, channel=0))
+        time.sleep(0.5)
+        midi.send(tmidi.Message(tmidi.NOTE_OFF, 60, 0, channel=0))
+        time.sleep(0.5)
+
+Receiving MIDI over USB. ``receive()`` returns ``None`` when nothing
+has arrived:
+
+.. code-block:: python
+
+    import usb_midi
+    import tmidi
+
+    midi = tmidi.MIDI(midi_in=usb_midi.ports[0])
+
+    while True:
+        if msg := midi.receive():
+            if msg.type == tmidi.NOTE_ON:
+                print("note on:", msg.note, msg.velocity, msg.channel)
+            else:
+                print(msg)
+
+
 Callbacks
 =========
 
@@ -41,6 +79,8 @@ and call ``poll()``. No ``Message`` objects are allocated.
     midi.on(tmidi.NOTE_ON, note_on)
     while True:
         midi.poll()
+
+See ``examples/tmidi_simple_poll.py`` for a full example.
 
 Turbo parser
 ============
@@ -128,28 +168,6 @@ Or the following command to update an existing version:
 .. code-block:: shell
 
     circup update
-
-Usage Example
-=============
-
-.. code-block:: python
-
-    import usb_midi
-    import tmidi
-
-    midi_usb = tmidi.MIDI(midi_in=usb_midi.ports[0], midi_out=usb_midi.ports[1])
-
-    def send_midi_panic(midi_channel=1):
-        ch = midi_channel-1
-        msg = tmidi.Message(tmidi.NOTE_OFF, channel=ch)  # channels are 0-indexed
-        for notenum in range(128):
-            msg.note = notenum
-            msg.velocity = 0
-            midi_usb.send(msg)
-            time.sleep(0.01)
-    }
-
-    send_midi_panic()
 
 
 Documentation

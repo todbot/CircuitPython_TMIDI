@@ -18,24 +18,36 @@ midi = tmidi.MIDI(midi_in=usb_midi.ports[0], midi_out=usb_midi.ports[1])
 
 tempo = 120  # bpm
 notes_per_beat = 2  # 1 = quarter-note, 2 = 8th, 4 = 16th
-note_time = 60 / tempo / notes_per_beat
-gate_percent = 0.5
+note_time = 60 / tempo / notes_per_beat  # seconds between arp notes
+gate_percent = 0.5  # fraction of note_time each arp note sounds
 
-pressed_notes = []
-note_i = 0
-last_note_time = 0
-gate_time = 0
+pressed_notes = []  # notes held down, in the order pressed
+note_i = 0  # index in pressed_notes
+last_note_time = 0  # when the current arp note started
+gate_time = 0  # how long in secs the current arp note sounds, 0 once it's off
+
+
+def note_off(channel, note, velocity):
+    global note_i
+    if note in pressed_notes:
+        midi.send(tmidi.Message(NOTE_OFF, note, velocity, channel))
+        pressed_notes.remove(note)
+        note_i = 0
+
+
+def note_on(channel, note, velocity):
+    if velocity == 0:
+        note_off(channel, note, velocity)
+        return
+    print("note on", note, velocity)
+    pressed_notes.append(note)
+
+
+midi.on(NOTE_ON, note_on)
+midi.on(NOTE_OFF, note_off)
+
 while True:
-    # handle midi input
-    if msg := midi.receive():
-        if msg.type == NOTE_ON and msg.velocity > 0:
-            print("note on", msg)
-            pressed_notes.append(msg.note)
-        elif msg.type == NOTE_OFF or (msg.type == NOTE_ON and msg.velocity == 0):
-            if msg.note in pressed_notes:
-                midi.send(msg)  # send the note off
-                pressed_notes.remove(msg.note)
-                note_i = 0
+    midi.poll()
 
     # do midi output, if we have pressed notes
     if len(pressed_notes) == 0:
