@@ -24,6 +24,7 @@
 
 # CircuitPython-specific files
 *.mpy
+!tmidi/tmidi_kernel.*.mpy
 
 # Python-specific files
 __pycache__
@@ -46,3 +47,6 @@ _build
 .idea
 .vscode
 *~
+
+.claude
+CLAUDE.md

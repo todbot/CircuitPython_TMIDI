@@ -18,6 +18,16 @@ Show to to receive MIDI messages.
     :linenos:
 
 
+Simple poll
+-----------
+
+Show how to receive MIDI messages with callbacks and ``poll()``.
+
+.. literalinclude:: ../examples/tmidi_simple_poll.py
+    :caption: examples/tmidi_simple_poll.py
+    :linenos:
+
+
 Multiple receivers
 ------------------
 
