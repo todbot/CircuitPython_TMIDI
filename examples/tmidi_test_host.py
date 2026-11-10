@@ -10,8 +10,11 @@
 #
 # Usage:
 #   python tmidi_test_host.py --usb-midi [--port "CircuitPython Audio"]
+#   python tmidi_test_host.py --usb-midi --port "RK006 OUT_ALL" --in-port "RK006 IN_ALL"
 #   python tmidi_test_host.py --serial /dev/cu.usbmodemXXXX
 #   python tmidi_test_host.py --serial /dev/ttyACM1
+#
+# The second form tests the device's UART MIDI through a USB MIDI interface.
 #
 # Dependencies:
 #   USB MIDI mode:  pip install mido python-rtmidi
@@ -73,19 +76,86 @@ TESTS = [
         bytes([0xE0, 0x00, 0x00]),
     ),
     (
+        "NOTE_ON ch=15 note=0 vel=127",
+        [bytes([0x9F, 0, 127])],
+        bytes([0x9F, 0, 127]),
+    ),
+    (
+        "NOTE_ON ch=0 note=61 vel=0",
+        [bytes([0x90, 61, 0])],
+        bytes([0x90, 61, 0]),
+    ),
+    (
+        "AFTERTOUCH ch=2 note=64 val=33",
+        [bytes([0xA2, 64, 33])],
+        bytes([0xA2, 64, 33]),
+    ),
+    (
+        "CHANNEL_PRESSURE ch=7 val=99",
+        [bytes([0xD7, 99])],
+        bytes([0xD7, 99]),
+    ),
+    (
+        "SONG_POSITION lsb=0x20 msb=0x20",
+        [bytes([0xF2, 0x20, 0x20])],
+        bytes([0xF2, 0x20, 0x20]),
+    ),
+    (
+        "SONG_SELECT 5",
+        [bytes([0xF3, 5])],
+        bytes([0xF3, 5]),
+    ),
+    (
         "CLOCK (single-byte real-time)",
         [bytes([0xF8])],
         bytes([0xF8]),
     ),
     (
+        "START",
+        [bytes([0xFA])],
+        bytes([0xFA]),
+    ),
+    (
+        "STOP",
+        [bytes([0xFC])],
+        bytes([0xFC]),
+    ),
+    (
+        # 0x7D is "non-commercial": a Universal SysEx like device inquiry
+        # may get answered by something else on a MIDI chain
         "SYSEX desync: NOTE_ON must survive a SysEx burst (ch=2, note=85, vel=99)",
         [
-            bytes([0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7]),  # SysEx — consumed, not echoed
+            bytes([0xF0, 0x7D, 0x01, 0x02, 0x03, 0xF7]),  # SysEx — consumed, not echoed
             bytes([0x92, 85, 99]),  # NOTE_ON — must be echoed cleanly
         ],
         bytes([0x92, 85, 99]),
     ),
+    (
+        "SYSEX longer than one read: 100 bytes, then CC",
+        [
+            bytes([0xF0] + list(range(100)) + [0xF7]),
+            bytes([0xB0, 1, 2]),
+        ],
+        bytes([0xB0, 1, 2]),
+    ),
 ]
+
+
+def _burst():
+    msgs = []
+    for i in range(200):
+        msgs.append(bytes([0x90, 36 + i % 48, 1 + i % 127]))
+        msgs.append(bytes([0x80, 36 + i % 48, 0]))
+        if i % 10 == 0:
+            msgs.append(bytes([0xF8]))
+            msgs.append(bytes([0xB2, 7, i % 128]))
+    return msgs
+
+
+BURST = _burst()
+# Burst messages go out at MIDI's 31250 baud, so a UART device gets them
+# back to back. Sending faster made an RK006 drop its input while busy.
+BAUD_SECS_PER_BYTE = 10 / 31250
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +164,7 @@ TESTS = [
 
 
 class MidiTransportUSB:
-    def __init__(self, port_name=None):
+    def __init__(self, port_name=None, in_port_name=None):
         try:
             import mido
         except ImportError:
@@ -121,7 +191,7 @@ class MidiTransportUSB:
                 sys.exit("Use --port to specify one.")
 
         # Match the input port by name (may have a numeric suffix on some OSes)
-        in_name = next(
+        in_name = in_port_name or next(
             (n for n in in_names if port_name in n or n in port_name),
             in_names[0] if in_names else port_name,
         )
@@ -227,6 +297,9 @@ def run_tests(transport):
             continue
 
         reply = transport.receive()
+        # real-time can arrive at any time, e.g. clock from an interface
+        while reply and reply[0] >= 0xF8 and expect[0] < 0xF8:
+            reply = transport.receive()
         elapsed_ms = (time.monotonic() - t0) * 1000
 
         if reply is None:
@@ -243,10 +316,56 @@ def run_tests(transport):
 
         time.sleep(0.02)  # inter-test gap
 
+    total = len(TESTS) + 1
+    print(
+        "[%d/%d] BURST of %d messages ... " % (total, total, len(BURST)),
+        end="",
+        flush=True,
+    )
+    if run_burst(transport):
+        passed += 1
+    else:
+        failed += 1
+
     print()
     result = "PASSED" if failed == 0 else "FAILED"
-    print("%s: %d/%d tests" % (result, passed, len(TESTS)))
+    print("%s: %d/%d tests" % (result, passed, total))
     return failed == 0
+
+
+def run_burst(transport):
+    due = time.perf_counter()
+    for raw in BURST:
+        transport.send(raw)
+        due += len(raw) * BAUD_SECS_PER_BYTE
+        while time.perf_counter() < due:
+            pass
+    replies = []
+    while (reply := transport.receive(timeout=1.0)) is not None:
+        replies.append(bytes(reply))
+
+    # Real-time messages may jump ahead of others in transit, and some
+    # interfaces add or drop clocks, so they are only reported
+    def split(msgs):
+        return [m for m in msgs if m[0] < 0xF8], sum(m[0] >= 0xF8 for m in msgs)
+
+    want, want_rt = split(BURST)
+    got, got_rt = split(replies)
+    counts = "sent %d + %d real-time, got %d + %d" % (
+        len(want),
+        want_rt,
+        len(got),
+        got_rt,
+    )
+    if got == want:
+        print("PASS (%s)" % counts)
+        return True
+    print("FAIL (%s)" % counts)
+    for i, (w, g) in enumerate(zip(want, got)):
+        if w != g:
+            print("  first diff at %d: expected %s, got %s" % (i, w.hex(" "), g.hex(" ")))
+            break
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -278,13 +397,18 @@ examples:
     parser.add_argument(
         "--port", metavar="NAME", help="MIDI output port name (--usb-midi only)"
     )
+    parser.add_argument(
+        "--in-port",
+        metavar="NAME",
+        help="MIDI input port name, if it doesn't match --port (--usb-midi only)",
+    )
     args = parser.parse_args()
 
     print("tmidi hardware-in-the-loop test")
     print("=" * 40)
 
     if args.usb_midi:
-        transport = MidiTransportUSB(port_name=args.port)
+        transport = MidiTransportUSB(port_name=args.port, in_port_name=args.in_port)
     else:
         transport = MidiTransportSerial(args.serial)
 
