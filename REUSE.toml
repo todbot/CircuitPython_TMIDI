@@ -1,0 +1,6 @@
+version = 1
+
+[[annotations]]
+path = ["LATENCY_RESULTS.md", "tests/data/**"]
+SPDX-FileCopyrightText = "Copyright (c) 2026 Tod Kurt"
+SPDX-License-Identifier = "MIT"
