@@ -177,6 +177,18 @@ _NEED_ONE = const(1)
 _NEED_FIRST = const(2)
 _NEED_SECOND = const(3)
 
+# status bytes the parser tests for, keep in sync with src/tmidi_turbo.py
+_B_STATUS = const(0x80)  # lowest status byte, data bytes are below
+_B_SYSTEM = const(0xF0)  # first system message, channel messages are below
+_B_SYSEX = const(0xF0)
+_B_SONG_POSITION = const(0xF2)
+_B_SONG_SELECT = const(0xF3)
+_B_BUS_SELECT = const(0xF5)
+_B_SYSEX_END = const(0xF7)
+_B_REALTIME = const(0xF8)  # first real-time message
+_B_ONE_DATA_MASK = const(0xE0)
+_B_ONE_DATA = const(0xC0)  # PROGRAM_CHANGE and CHANNEL_PRESSURE, masked
+
 _READ_SIZE = const(64)
 _MAX_SYSEX = const(65535)
 
@@ -198,41 +210,41 @@ def _parse_py(buf, st, sx):
         rd += 1
 
         # real-time can land inside any message and must not disturb it
-        if b >= 0xF8:
+        if b >= _B_REALTIME:
             st[_ST_RD] = rd
             st[_ST_STATUS] = status
             st[_ST_NEED] = need
             return b << 16
 
-        if b >= 0x80:
-            if b == 0xF7 and status == 0xF0:
+        if b >= _B_STATUS:
+            if b == _B_SYSEX_END and status == _B_SYSEX:
                 st[_ST_RD] = rd
                 st[_ST_STATUS] = 0
                 st[_ST_NEED] = 0
-                return 0xF00000 | st[_ST_SX_LEN]
+                return _B_SYSEX << 16 | st[_ST_SX_LEN]
 
             if status != 0:
                 st[_ST_ERRORS] = (st[_ST_ERRORS] + 1) & 0xFFFF
 
             status = b
-            if b < 0xF0:
+            if b < _B_SYSTEM:
                 if st[_ST_RUNNING_ON] != 0:
                     st[_ST_RUNNING] = b
-                if (b & 0xE0) == 0xC0:
+                if (b & _B_ONE_DATA_MASK) == _B_ONE_DATA:
                     need = _NEED_ONE
                 else:
                     need = _NEED_FIRST
                 continue
 
             st[_ST_RUNNING] = 0
-            if b == 0xF0:
+            if b == _B_SYSEX:
                 need = 0
                 st[_ST_SX_LEN] = 0
                 continue
-            if b == 0xF2:
+            if b == _B_SONG_POSITION:
                 need = _NEED_FIRST
                 continue
-            if b == 0xF3 or b == 0xF5:
+            if b == _B_SONG_SELECT or b == _B_BUS_SELECT:
                 need = _NEED_ONE
                 continue
 
@@ -241,7 +253,7 @@ def _parse_py(buf, st, sx):
             st[_ST_NEED] = 0
             return b << 16
 
-        if status == 0xF0:
+        if status == _B_SYSEX:
             n = st[_ST_SX_LEN]
             if n < st[_ST_SX_CAP]:
                 sx[n] = b
@@ -253,7 +265,7 @@ def _parse_py(buf, st, sx):
             if status == 0:
                 st[_ST_ERRORS] = (st[_ST_ERRORS] + 1) & 0xFFFF
                 continue
-            if (status & 0xE0) == 0xC0:
+            if (status & _B_ONE_DATA_MASK) == _B_ONE_DATA:
                 need = _NEED_ONE
             else:
                 need = _NEED_FIRST

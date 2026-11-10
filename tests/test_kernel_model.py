@@ -52,7 +52,7 @@ def run(parse, stream, splits, running):
 def test_kernel_slots_match_python():
     kernel = load_kernel()
     for name in dir(tmidi):
-        if name.startswith(("_ST_", "_NEED_")) and name != "_ST_SIZE":
+        if name.startswith(("_ST_", "_NEED_", "_B_")) and name != "_ST_SIZE":
             assert getattr(kernel, name) == getattr(tmidi, name)
 
 
