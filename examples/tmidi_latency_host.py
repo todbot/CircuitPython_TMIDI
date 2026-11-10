@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-# USB MIDI latency test host, for tmidi_latency_test.py in "usb" mode.
+# USB MIDI latency test host, for tmidi_latency_device.py in "usb" mode.
 #
 # Sends each scenario on the schedule the board also computes, between
 # start and end markers. The board times what it handles against that
@@ -31,13 +31,13 @@ _seed = [1]
 
 
 def _rand(n):
-    # same LCG as tmidi_latency_test.py
+    # same LCG as tmidi_latency_device.py
     _seed[0] = (_seed[0] * 75 + 74) % 65537
     return _seed[0] % n
 
 
 def scenario_events(name):
-    """Yield (due time in µs from start, kind), as tmidi_latency_test.py does"""
+    """Yield (due time in µs from start, kind), as tmidi_latency_device.py does"""
     _seed[0] = 1
     if name == "note":
         t = 0

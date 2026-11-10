@@ -1,7 +1,7 @@
 # tmidi latency results
 
 Time from a MIDI message on the wire to CircuitPython code acting on it,
-from `examples/tmidi_latency_test.py` (and `tmidi_latency_host.py` for
+from `examples/tmidi_latency_device.py` (and `tmidi_latency_host.py` for
 USB).
 
 - Raspberry Pi Pico (RP2040) @ 125 MHz, CircuitPython 11.0.0-alpha.2
