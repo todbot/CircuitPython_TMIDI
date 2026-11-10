@@ -3,15 +3,15 @@
 # SPDX-License-Identifier: MIT
 """tmidi parser as a turbo (@micropython.viper) function.
 
-Viper port of ``_parse_py`` in ``tmidi.py``. Keep the two in sync.
+Viper port of ``_parse_py`` in ``tmidi/__init__.py``. Keep the two in sync.
 
-Build with ``src/Makefile``, firmware loads ``tmidi_kernel.<arch>.mpy``.
+Build with ``src/Makefile``, firmware loads ``tmidi/tmidi_kernel.<arch>.mpy``.
 """
 
 import micropython
 from micropython import const
 
-# Keep in sync with the _ST_ slots in tmidi.py
+# Keep in sync with the _ST_ slots in tmidi/__init__.py
 _ST_RD = const(0)
 _ST_WR = const(1)
 _ST_STATUS = const(2)

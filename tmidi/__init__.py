@@ -66,7 +66,7 @@ from micropython import const
 # Prebuilt per chip as tmidi_kernel.<arch>.mpy from src/tmidi_turbo.py.
 # Missing on Blinka and on firmware without native code.
 try:
-    from tmidi_kernel import parse as _kernel_parse
+    from tmidi.tmidi_kernel import parse as _kernel_parse
 except (ImportError, ValueError):
     _kernel_parse = None
 

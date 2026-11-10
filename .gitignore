@@ -24,6 +24,7 @@
 
 # CircuitPython-specific files
 *.mpy
+!tmidi/tmidi_kernel.*.mpy
 
 # Python-specific files
 __pycache__

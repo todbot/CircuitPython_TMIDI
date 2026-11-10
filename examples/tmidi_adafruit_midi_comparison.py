@@ -6,7 +6,7 @@
 Synthetic benchmark comparing tmidi vs adafruit_midi receive() performance.
 Run on a CircuitPython board (tested on RP2350 Pico 2).
 
-Copy both tmidi.py and adafruit_midi/ to the board's lib/ folder, then run this
+Copy both the tmidi/ and adafruit_midi/ folders to the board's lib/, then run this
 script. Each library is tested against the same pre-loaded byte buffer so results
 are directly comparable. Results print as µs/msg and net heap change.
 

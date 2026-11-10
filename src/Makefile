@@ -5,16 +5,15 @@
 #   make MPY_CROSS=path/to/circuitpython/mpy-cross/build/mpy-cross
 MPY_CROSS ?= mpy-cross
 SRC ?= tmidi_turbo.py
-OUT ?= build
+OUT ?= ../tmidi
 ARCHES = armv6m armv7emsp xtensawin rv32imc
 
 all: $(foreach a,$(ARCHES),$(OUT)/tmidi_kernel.$(a).mpy)
 
 $(OUT)/tmidi_kernel.%.mpy: $(SRC)
-	mkdir -p $(OUT)
 	$(MPY_CROSS) -march=$* -o $@ $<
 
 clean:
-	rm -rf $(OUT)
+	rm -f $(OUT)/tmidi_kernel.*.mpy
 
 .PHONY: all clean

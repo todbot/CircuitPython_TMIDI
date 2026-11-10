@@ -1,6 +1,6 @@
 version = 1
 
 [[annotations]]
-path = ["LATENCY_RESULTS.md", "tests/data/**"]
+path = ["LATENCY_RESULTS.md", "tests/data/**", "tmidi/tmidi_kernel.*.mpy"]
 SPDX-FileCopyrightText = "Copyright (c) 2026 Tod Kurt"
 SPDX-License-Identifier = "MIT"

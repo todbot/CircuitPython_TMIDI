@@ -85,9 +85,13 @@ See ``examples/tmidi_simple_poll.py`` for a full example.
 Turbo parser
 ============
 
-TMIDI runs entirely in Python, but will use an optional ``@micropython.viper``
-parser if ``tmidi_kernel.<arch>.mpy`` for your board is in ``lib/`` and your
-firmware can load native code. ``tmidi.ENGINE`` says which one is in use.
+TMIDI runs entirely in Python, but uses a faster ``@micropython.viper``
+parser when your firmware can load native code. The parsers ship inside the
+``tmidi/`` library folder as ``tmidi_kernel.<arch>.mpy``, and CircuitPython
+picks the one for your board. ``tmidi.ENGINE`` says which parser is in use.
+
+TMIDI 3.0 is a folder, ``lib/tmidi/``, instead of a single ``lib/tmidi.mpy``.
+Delete an old ``lib/tmidi.mpy`` when upgrading.
 
 ======================  =====================================
 ``tmidi_kernel`` file   Boards
@@ -98,8 +102,8 @@ firmware can load native code. ``tmidi.ENGINE`` says which one is in use.
 ``rv32imc``             ESP32-C3, C5, C6
 ======================  =====================================
 
-Build them with an ``mpy-cross`` from the CircuitPython version they will run
-on. The files land in ``src/build/``:
+To rebuild them from ``src/tmidi_turbo.py``, use an ``mpy-cross`` from the
+CircuitPython version they will run on. The files land in ``tmidi/``:
 
 .. code-block:: shell
 
