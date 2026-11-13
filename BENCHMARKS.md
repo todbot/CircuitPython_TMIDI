@@ -57,8 +57,8 @@ The other runs use `--impl python` and `--impl adafruit`.
 | 1000-note burst, UART to USB   | 0.96 s      | 0.97 s       | 391 arrived   |
 | both ways at once, USB to UART | all 1000    | all 1000     | all 1000      |
 | both ways at once, UART to USB | all 1000    | all 1000     | 367 arrived   |
-| round trip, USB to UART        | 2.67 (4.12) | 2.67 (3.71)  | 4.55 (7.22)   |
-| round trip, UART to USB        | 2.66 (8.45) | 2.66 (6.76)  | 5.41 (8.80)   |
+| trip ms, median (max), to UART | 2.67 (4.12) | 2.67 (3.71)  | 4.55 (7.22)   |
+| trip ms, median (max), to USB  | 2.66 (8.45) | 2.66 (6.76)  | 5.41 (8.80)   |
 | no app reading the board's USB | ok          | ok           | ok            |
 
 - Every message type: same result in both directions. adafruit_midi has
