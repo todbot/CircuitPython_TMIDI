@@ -178,6 +178,65 @@ def test_system_common_cancels_running_status():
     assert midi.error_count == 1
 
 
+def test_realtime_keeps_running_status():
+    port = ChunkPort(bytes([0x90, 60, 100, 0xF8, 61, 0xFE, 101, 62, 102]))
+    midi = tmidi.MIDI(port, enable_running_status=True)
+    got = []
+    while msg := midi.receive():
+        got.append((msg.type, msg.data0, msg.data1))
+    assert got == [
+        (tmidi.NOTE_ON, 60, 100),
+        (tmidi.CLOCK, 0, 0),
+        (tmidi.ACTIVE_SENSING, 0, 0),
+        (tmidi.NOTE_ON, 61, 101),
+        (tmidi.NOTE_ON, 62, 102),
+    ]
+    assert midi.error_count == 0
+
+
+def test_running_status_one_data_byte():
+    port = ChunkPort(bytes([0xC3, 5, 6, 0xD4, 77, 78]))
+    midi = tmidi.MIDI(port, enable_running_status=True)
+    got = []
+    while msg := midi.receive():
+        got.append((msg.type, msg.channel, msg.data0))
+    assert got == [
+        (tmidi.PROGRAM_CHANGE, 3, 5),
+        (tmidi.PROGRAM_CHANGE, 3, 6),
+        (tmidi.CHANNEL_PRESSURE, 4, 77),
+        (tmidi.CHANNEL_PRESSURE, 4, 78),
+    ]
+    assert midi.error_count == 0
+
+
+def test_running_status_across_reads():
+    port = ChunkPort(bytes([0xB0, 1, 2, 3]), b"", bytes([4, 5]), bytes([6]))
+    midi = tmidi.MIDI(port, enable_running_status=True)
+    got = []
+    for _ in range(6):
+        msg = midi.receive()
+        if msg:
+            got.append((msg.data0, msg.data1))
+    assert got == [(1, 2), (3, 4), (5, 6)]
+    assert midi.error_count == 0
+
+
+def test_running_status_poll():
+    port = ChunkPort(bytes([0x91, 60, 100, 61, 0, 0xB2, 74, 64, 75, 65]))
+    midi = tmidi.MIDI(port, enable_running_status=True)
+    calls = []
+    midi.on(tmidi.NOTE_ON, recorder(calls, "on"))
+    midi.on(tmidi.CC, recorder(calls, "cc"))
+    assert midi.poll() == 4
+    assert calls == [
+        ("on", 1, 60, 100),
+        ("on", 1, 61, 0),
+        ("cc", 2, 74, 64),
+        ("cc", 2, 75, 65),
+    ]
+    assert midi.error_count == 0
+
+
 def test_message_straddling_read_size():
     data = bytes([0xB0, 1, 2] * 22)
     midi = tmidi.MIDI(ChunkPort(data[:64], data[64:]))

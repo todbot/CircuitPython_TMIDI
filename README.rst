@@ -27,6 +27,9 @@ by Thea Flowers for Winterbloom.
 Like ``adafruit_midi``, TMIDI works on CircuitPython's ``usb_midi`` and ``busio.UART``,
 or any stream-like object that supports ``.readinto()`` and ``.write()``
 
+For speed and latency compared to ``adafruit_midi``, see
+`BENCHMARKS.md <https://github.com/todbot/CircuitPython_TMIDI/blob/HEAD/BENCHMARKS.md>`_.
+
 Usage Example
 =============
 
