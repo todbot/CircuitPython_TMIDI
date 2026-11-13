@@ -59,6 +59,7 @@ __repo__ = "https://github.com/todbot/CircuitPython_TMIDI.git"
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
+import time
 from array import array
 
 from micropython import const
@@ -128,7 +129,7 @@ _MSG_DATA_LEN = {
     BUS_SELECT: 1,
 }
 
-# Pre-allocated scratch buffer for __bytes__() — avoids per-call list allocation.
+# Scratch buffer for Message._pack(), so send() doesn't allocate.
 # Safe because CircuitPython is single-threaded.
 _msg_buf = bytearray(3)
 
@@ -191,8 +192,34 @@ _B_ONE_DATA = const(0xC0)  # PROGRAM_CHANGE and CHANNEL_PRESSURE, masked
 
 _READ_SIZE = const(64)
 _MAX_SYSEX = const(65535)
+_STALL_NS = const(20_000_000)
 
 _NO_SYSEX = bytearray(0)
+
+
+def _write_all(port, buf, n):
+    """Write n bytes of buf, False if the port stops taking them.
+
+    usb_midi takes only what fits in its USB buffer, about 144 bytes, and
+    nothing at all while no app on the computer has the port open.
+    """
+    written = port.write(buf, n)
+    if written is None or written >= n:  # None: port doesn't say, e.g. BLE MIDI
+        return True
+    mv = memoryview(buf)[written:n]
+    stalled_at = None
+    while mv:
+        written = port.write(mv, len(mv))
+        if written is None:
+            return True
+        if written:
+            mv = mv[written:]
+            stalled_at = None
+        elif stalled_at is None:
+            stalled_at = time.monotonic_ns()
+        elif time.monotonic_ns() - stalled_at > _STALL_NS:
+            return False
+    return True
 
 
 def _parse_py(buf, st, sx):
@@ -331,20 +358,22 @@ class Message:
         if mtype == PITCH_BEND and data1 == 0 and not (0 <= data0 <= 0x7F):
             self.pitch_bend = data0
 
-    def __bytes__(self):
+    def _pack(self):
+        """Put this message's wire bytes in _msg_buf, returning how many."""
         status_byte = self.type
         if _is_channel_message(status_byte):
             status_byte |= self.channel
         _msg_buf[0] = status_byte
         n = _MSG_DATA_LEN.get(self.type, 0)
-        if n == 2:
+        if n:
             _msg_buf[1] = self.data0
-            _msg_buf[2] = self.data1
-            return bytes(_msg_buf)
-        if n == 1:
-            _msg_buf[1] = self.data0
-            return bytes(_msg_buf[:2])
-        return bytes(_msg_buf[:1])
+            if n == 2:
+                _msg_buf[2] = self.data1
+        return n + 1
+
+    def __bytes__(self):
+        n = self._pack()
+        return bytes(_msg_buf) if n == 3 else bytes(_msg_buf[:n])
 
     def __repr__(self):
         return self.__str__()
@@ -414,6 +443,7 @@ class MIDI:
         set to ``usb_midi.ports[0]`` for USB MIDI, default None.
     :param midi_out: an object which implements ``write(buffer, length)``,
         set to ``usb_midi.ports[1]`` for USB MIDI, default None.
+        ``write()`` must use or copy ``buffer`` before returning, since tmidi reuses it.
     :param bool enable_running_status: Allow running status messages to work, default False.
     :param bytearray sysex_buffer: Optional pre-allocated buffer for capturing SysEx payloads.
         When provided, received SysEx payload bytes are written into this buffer and
@@ -475,6 +505,15 @@ class MIDI:
         midi_uart = tmidi.MIDI(midi_out=uart)
         msg_on = tmidi.Message(tmidi.NOTE_ON, notenum, velocity)
         midi_uart.send(msg_on)
+
+    Example of sending SysEx, or any raw MIDI bytes:
+
+    .. code-block:: python
+
+        import usb_midi
+        import tmidi
+        midi_usb = tmidi.MIDI(midi_out=usb_midi.ports[1])
+        midi_usb.write(bytes([0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7]))  # device inquiry
 
     Example of receiving MIDI:
 
@@ -631,13 +670,26 @@ class MIDI:
         if isinstance(msg, Message):
             if channel is not None:
                 msg.channel = channel
-            # bytes(object) does not work in uPy
-            data = msg.__bytes__()
-        else:
-            data = bytearray()
-            for each_msg in msg:
-                if channel is not None:
-                    each_msg.channel = channel
-                data.extend(each_msg.__bytes__())
+            # usb_midi takes a short message whole or not at all
+            self._out_port.write(_msg_buf, msg._pack())
+            return
 
-        self._out_port.write(data, len(data))
+        data = bytearray()
+        for each_msg in msg:
+            if channel is not None:
+                each_msg.channel = channel
+            # bytes(object) does not work in uPy
+            data.extend(each_msg.__bytes__())
+        _write_all(self._out_port, data, len(data))
+
+    def write(self, buf, n=None):
+        """Write raw MIDI bytes, such as a whole SysEx message.
+
+        :param buf: Bytes already in MIDI wire format.
+        :param int n: Number of bytes of ``buf`` to write, default all of it.
+        :returns bool: False if the port stopped taking bytes for 20 ms, as
+            usb_midi does while no app has it open, and the rest was dropped.
+        """
+        if n is None:
+            n = len(buf)
+        return _write_all(self._out_port, buf, n)
