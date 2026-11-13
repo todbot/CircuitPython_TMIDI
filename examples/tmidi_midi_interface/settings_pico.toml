@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 Tod Kurt
+#
+# SPDX-License-Identifier: MIT
+
+# tmidi_midi_interface settings for Raspberry Pi Pico or Pico 2.
+# Copy to CIRCUITPY as settings.toml. See settings.toml for all settings.
+
+TMIDI_USB_MANUFACTURER = "todbot"
+TMIDI_USB_PRODUCT = "TMIDI Interface"
+TMIDI_MIDI_INTERFACE_NAME = "TMIDI Interface"
+TMIDI_MIDI_CONTROL_NAME = "TMIDI Interface"
+TMIDI_MIDI_IN_JACK_NAME = "TMIDI In"
+TMIDI_MIDI_OUT_JACK_NAME = "TMIDI Out"
+
+# UART0 on pins 1 and 2
+TMIDI_UART_TX = "GP0"
+TMIDI_UART_RX = "GP1"
+
+TMIDI_SYSEX_SIZE = 256
+TMIDI_FILTER_TO_UART = ""
+TMIDI_FILTER_TO_USB = "ACTIVE_SENSING"
+
+# The onboard LED, for both directions. Pico W's LED isn't on a GPIO.
+TMIDI_LED_TO_UART = "GP25"
+TMIDI_LED_TO_USB = "GP25"
+TMIDI_LED_MS = 20

@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 Tod Kurt
+#
+# SPDX-License-Identifier: MIT
+
+# tmidi_midi_interface settings for Seeed XIAO RP2040.
+# Copy to CIRCUITPY as settings.toml. See settings.toml for all settings.
+
+TMIDI_USB_MANUFACTURER = "todbot"
+TMIDI_USB_PRODUCT = "TMIDI Interface"
+TMIDI_MIDI_INTERFACE_NAME = "TMIDI Interface"
+TMIDI_MIDI_CONTROL_NAME = "TMIDI Interface"
+TMIDI_MIDI_IN_JACK_NAME = "TMIDI In"
+TMIDI_MIDI_OUT_JACK_NAME = "TMIDI Out"
+
+TMIDI_UART_TX = "TX"
+TMIDI_UART_RX = "RX"
+
+TMIDI_SYSEX_SIZE = 256
+TMIDI_FILTER_TO_UART = ""
+TMIDI_FILTER_TO_USB = "ACTIVE_SENSING"
+
+# The onboard RGB LED on GPIO17,16,25, lit by a low pin:
+# blue for USB->UART, green for UART->USB
+TMIDI_LED_TO_UART = "LED_RED,LED_GREEN,LED_BLUE"
+TMIDI_LED_TO_USB = "LED_RED,LED_GREEN,LED_BLUE"
+TMIDI_LED_ACTIVE_LOW = 1
+TMIDI_COLOR_TO_UART = 0x0000FF
+TMIDI_COLOR_TO_USB = 0x00FF00
+TMIDI_LED_MS = 20

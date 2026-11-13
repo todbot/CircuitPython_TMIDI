@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 Tod Kurt
+#
+# SPDX-License-Identifier: MIT
+
+# Settings for tmidi_midi_interface. All are optional.
+# Remove a key (or comment it out) to use its default.
+
+# USB identity, read by boot.py. Changes need a hard reset.
+# Unset keys keep the CircuitPython defaults.
+TMIDI_USB_MANUFACTURER = "todbot"
+TMIDI_USB_PRODUCT = "TMIDI Interface"
+# TMIDI_USB_VID = 0x1209   # only used if both VID and PID are set
+# TMIDI_USB_PID = 0x0001
+TMIDI_MIDI_INTERFACE_NAME = "TMIDI Interface"
+TMIDI_MIDI_CONTROL_NAME = "TMIDI Interface"  # Windows: 31 chars max
+TMIDI_MIDI_IN_JACK_NAME = "TMIDI In"
+TMIDI_MIDI_OUT_JACK_NAME = "TMIDI Out"
+
+# UART pins, as named in board. "" turns off that direction.
+TMIDI_UART_TX = "TX"
+TMIDI_UART_RX = "RX"
+TMIDI_UART_BAUD = 31250
+TMIDI_UART_RX_BUF = 512
+
+# SysEx longer than this is truncated, 0 drops all SysEx
+TMIDI_SYSEX_SIZE = 256
+
+# Message types to drop, as comma-separated tmidi names, e.g.
+# "CLOCK,ACTIVE_SENSING,SYSEX". "" forwards everything.
+TMIDI_FILTER_TO_UART = ""
+TMIDI_FILTER_TO_USB = "ACTIVE_SENSING"
+
+# Traffic LEDs, as named in board, "" for none. Both may be the same LED.
+# - one pin is a plain LED, e.g. "LED"
+# - three pins are an RGB LED, e.g. "LED_RED,LED_GREEN,LED_BLUE",
+#   lighting each color in the colors below (on or off, no dimming)
+# - names starting with NEOPIXEL are NeoPixels, lit in the colors below
+TMIDI_LED_TO_UART = "LED"
+TMIDI_LED_TO_USB = "LED"
+TMIDI_COLOR_TO_UART = 0x000040
+TMIDI_COLOR_TO_USB = 0x004000
+TMIDI_LED_MS = 20
+TMIDI_LED_ACTIVE_LOW = 0  # 1 for plain/RGB LEDs lit by a low pin

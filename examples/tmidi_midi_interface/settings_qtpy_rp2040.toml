@@ -1,0 +1,27 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 Tod Kurt
+#
+# SPDX-License-Identifier: MIT
+
+# tmidi_midi_interface settings for Adafruit QT Py RP2040.
+# Copy to CIRCUITPY as settings.toml. See settings.toml for all settings.
+
+TMIDI_USB_MANUFACTURER = "todbot"
+TMIDI_USB_PRODUCT = "TMIDI Interface"
+TMIDI_MIDI_INTERFACE_NAME = "TMIDI Interface"
+TMIDI_MIDI_CONTROL_NAME = "TMIDI Interface"
+TMIDI_MIDI_IN_JACK_NAME = "TMIDI In"
+TMIDI_MIDI_OUT_JACK_NAME = "TMIDI Out"
+
+TMIDI_UART_TX = "TX"
+TMIDI_UART_RX = "RX"
+
+TMIDI_SYSEX_SIZE = 256
+TMIDI_FILTER_TO_UART = ""
+TMIDI_FILTER_TO_USB = "ACTIVE_SENSING"
+
+# The onboard NeoPixel: blue for USB->UART, green for UART->USB
+TMIDI_LED_TO_UART = "NEOPIXEL"
+TMIDI_LED_TO_USB = "NEOPIXEL"
+TMIDI_COLOR_TO_UART = 0x000040
+TMIDI_COLOR_TO_USB = 0x004000
+TMIDI_LED_MS = 20
