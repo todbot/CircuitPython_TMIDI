@@ -3,26 +3,13 @@
 # SPDX-License-Identifier: MIT
 
 """
-Synthetic benchmark comparing tmidi vs adafruit_midi receive() performance.
-Run on a CircuitPython board (tested on RP2350 Pico 2).
+CPU cost of parsing received MIDI, for tmidi (viper and Python parsers)
+and adafruit_midi. Each reads the same pre-loaded bytes, so no MIDI cable
+is involved, and prints µs/msg and net heap change for receive(), and for
+tmidi's poll().
 
-Copy both the tmidi/ and adafruit_midi/ folders to the board's lib/, then run this
-script. Each library is tested against the same pre-loaded byte buffer so results
-are directly comparable. Results print as µs/msg and net heap change.
-
-Prints µs/msg for receive() and poll(), on the viper parser if it loaded and on
-the pure Python one.
-
-Example output (RP2040 Pico @ 125 MHz, CircuitPython 11.0.0-alpha.2,
-tmidi_kernel.armv6m.mpy and adafruit_midi as .mpy):
-  engine: viper
-  tmidi (viper)      : 20000 msgs, 206 µs/msg, heap: -80 bytes
-  tmidi (Python)     : 20000 msgs, 301 µs/msg, heap: -32 bytes
-  tmidi poll (viper) : 20000 msgs, 51 µs/msg, heap: -32 bytes
-  tmidi poll (Python): 20000 msgs, 134 µs/msg, heap: -32 bytes
-  adafruit_midi      : 20000 msgs, 1063 µs/msg, heap: -32 bytes
-  tmidi (viper) is 5.2x faster than adafruit_midi
-  tmidi (Python) is 3.5x faster than adafruit_midi
+Copy this repo's tmidi/ and adafruit_midi/ to CIRCUITPY/lib/, then this
+file as code.py.
 """
 
 import gc

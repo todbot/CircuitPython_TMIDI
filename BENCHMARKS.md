@@ -4,6 +4,8 @@ tmidi compared with adafruit_midi on a Raspberry Pi Pico (RP2040):
 
 - [USB-to-UART MIDI interface](#usb-to-uart-midi-interface): forwarding
   MIDI between a computer and a MIDI cable
+- [Parsing cost](#parsing-cost): CPU time to turn received bytes into
+  messages
 - [Latency](#latency): time from a MIDI message arriving to code acting
   on it
 
@@ -102,6 +104,39 @@ poll() + port.write is what `tmidi_midi_interface` does.
   slows its USB-to-UART burst to 3 s.
 - receive() makes a Message for every message. poll() with callbacks
   doesn't, and is about 3x cheaper.
+
+## Parsing cost
+
+CPU time to turn received bytes into messages, with nothing sent, from
+[benchmarks/parse_bench.py](benchmarks/parse_bench.py). Each library
+reads the same bytes from memory: 1000 passes over 20 messages of 9
+types (notes, CC, program change, channel pressure, pitch bend, clock,
+start, stop). For poll(), callbacks that do nothing are set on 4 of the
+9 types.
+
+Setup:
+
+- Raspberry Pi Pico (RP2040) @ 125 MHz, CircuitPython
+  11.0.0-alpha.2-143
+- adafruit_midi 1.6.0, compiled to .mpy
+- A different Pico and CircuitPython build from the interface tests. On
+  this one, forward_bench.py came out within 13% of the forwarding
+  table above, in the same order.
+
+| Parsing with             | µs/msg |
+|--------------------------|--------|
+| tmidi viper, poll()      | 50     |
+| tmidi Python, poll()     | 131    |
+| tmidi viper, receive()   | 183    |
+| tmidi Python, receive()  | 273    |
+| adafruit_midi, receive() | 978    |
+
+- tmidi's receive() is 5.3x (viper) and 3.6x (Python) faster than
+  adafruit_midi's.
+- Net heap change over each run was under 100 bytes, so none of them
+  hold on to memory. receive() still allocates a Message per message.
+- The message mix differs from forward_bench.py's, so the two tables
+  don't subtract to give the cost of sending.
 
 ## Latency
 
